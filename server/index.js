@@ -165,10 +165,6 @@ io.on('connection', (socket) => {
                 });
 
                 io.to(roomName).emit('userLeft', { socketId: socket.id });
-                
-                if (room.users.size === 0) {
-                    rooms.delete(roomName);
-                }
             }
         });
         
