@@ -133,6 +133,7 @@ io.on('connection', (socket) => {
 
     socket.on('claimSeat', (data) => {
         const { roomName, seatId } = data;
+        log('INFO', 'claimSeat received', { socketId: socket.id, roomName, seatId });
 
         const room = rooms.get(roomName);
         if (!room) {

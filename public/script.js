@@ -129,6 +129,7 @@ socket.on('roomState', (data) => {
 
         if (!seat.occupiedBy) {
             seatEl.addEventListener('click', () => {
+                console.log('Clicking seat:', { seatId: seat.id, roomName: currentRoom });
                 socket.emit('claimSeat', { roomName: currentRoom, seatId: seat.id });
             });
         }
