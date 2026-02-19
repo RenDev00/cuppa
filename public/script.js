@@ -113,6 +113,13 @@ document.querySelectorAll('.status-btn').forEach(btn => {
     });
 });
 
+document.getElementById('test-claim-seat')?.addEventListener('click', () => {
+    if (currentRoom) {
+        console.log('TEST: Claiming seat 0');
+        socket.emit('claimSeat', { roomName: currentRoom, seatId: 0 });
+    }
+});
+
 socket.on('roomState', (data) => {
     console.log('roomState received:', { roomName: data.roomName, seats: data.seats, users: data.users });
     currentRoom = data.roomName;
