@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { rooms, workplacesConfig } from './state.js';
+import { rooms, workplacesConfig, claimSeat, userJoined, userLeft, updateStatus, createRoom } from './state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -34,14 +34,6 @@ const findAvailableRoom = (baseName) => {
     }
 
     return null;
-};
-
-const createRoom = (roomName) => {
-    const workplaceType = roomName.replace(/-[0-9]+$/, '');
-    return {
-        users: new Map(),
-        seats: JSON.parse(JSON.stringify(workplacesConfig[workplaceType]?.seats || []))
-    };
 };
 
 const app = express();
@@ -125,16 +117,16 @@ io.on('connection', (socket) => {
             rooms.set(roomName, room);
         }
 
-        room.users.set(socket.id, { username: username || 'Anonymous', status: 'working' });
+        const user = userJoined(room, socket.id, { username, status: 'working' });
 
         socket.join(roomName);
         socket.emit('roomState', {
             roomName,
-            users: Array.from(room.users.entries()).map(([id, user]) => ({ id, ...user })),
+            users: Array.from(room.users.entries()).map(([id, userData]) => ({ id, ...userData })),
             seats: room.seats
         });
 
-        socket.to(roomName).emit('userJoined', { socketId: socket.id });
+        socket.to(roomName).emit('userJoined', { socketId: socket.id, username: user.username, status: user.status });
 
         broadcastRoomsList();
     });
@@ -153,12 +145,11 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const seat = room.seats.find(s => s.id === seatId);
-        if (seat && !seat.occupiedBy) {
-            seat.occupiedBy = socket.id;
-            io.to(roomName).emit('seatUpdated', { seatId, occupiedBy: socket.id });
-        } else if (seat?.occupiedBy) {
-            log('WARN', 'Seat already occupied', { seatId, currentOccupant: seat.occupiedBy });
+        const success = claimSeat(room, socket.id, seatId);
+        if (success) {
+            io.to(roomName).emit('seatClaimed', { seatId, socketId: socket.id });
+        } else {
+            log('WARN', 'Seat already occupied or invalid', { seatId });
         }
     });
 
@@ -183,33 +174,34 @@ io.on('connection', (socket) => {
             return;
         }
 
-        room.users.delete(socket.id);
-
-        room.seats.forEach(seat => {
-            if (seat.occupiedBy === socket.id) {
-                seat.occupiedBy = null;
-            }
-        });
+        const { freedSeatId } = userLeft(room, socket.id);
 
         socket.leave(roomName);
-        io.to(roomName).emit('userLeft', { socketId: socket.id });
+        
+        const payload = { socketId: socket.id };
+        if (freedSeatId !== null) {
+            payload.seatFreed = freedSeatId;
+        }
+        io.to(roomName).emit('userLeft', payload);
 
         log('INFO', 'User left room', { socketId: socket.id, roomName });
         broadcastRoomsList();
     });
 
     socket.on('updateStatus', (data) => {
-        const { roomName, status } = data;
+        const { roomName, status, socketId } = data;
+        const targetSocketId = socketId || socket.id;
 
         const room = rooms.get(roomName);
-        if (!room || !room.users.has(socket.id)) {
-            log('WARN', 'User not in room', { socketId: socket.id, roomName });
+        if (!room || !room.users.has(targetSocketId)) {
+            log('WARN', 'User not in room', { socketId: targetSocketId, roomName });
             return;
         }
 
-        const user = room.users.get(socket.id);
-        user.status = status;
-        io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status });
+        const success = updateStatus(room, targetSocketId, status);
+        if (success) {
+            io.to(roomName).emit('userStatusUpdated', { socketId: targetSocketId, status });
+        }
     });
 
     socket.on('disconnect', () => {
@@ -219,15 +211,13 @@ io.on('connection', (socket) => {
 
         rooms.forEach((room, roomName) => {
             if (room.users.has(socket.id)) {
-                room.users.delete(socket.id);
-
-                room.seats.forEach(seat => {
-                    if (seat.occupiedBy === socket.id) {
-                        seat.occupiedBy = null;
-                    }
-                });
-
-                io.to(roomName).emit('userLeft', { socketId: socket.id });
+                const { freedSeatId } = userLeft(room, socket.id);
+                
+                const payload = { socketId: socket.id };
+                if (freedSeatId !== null) {
+                    payload.seatFreed = freedSeatId;
+                }
+                io.to(roomName).emit('userLeft', payload);
             }
         });
 
