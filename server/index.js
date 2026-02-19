@@ -45,29 +45,32 @@ const io = new Server(httpServer, {
     }
 });
 
-const rateLimitStore = new Map();
+const eventRateLimitStore = new Map();
 
-const rateLimitMiddleware = (socket, next) => {
+const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
     const now = Date.now();
-    const socketId = socket.id;
-
-    if (!rateLimitStore.has(socketId)) {
-        rateLimitStore.set(socketId, { count: 0, resetTime: now + 1000 });
+    const key = `${socketId}:${eventName}`;
+    
+    if (!eventRateLimitStore.has(key)) {
+        eventRateLimitStore.set(key, { count: 0, resetTime: now + 1000 });
     }
-
-    const record = rateLimitStore.get(socketId);
-
+    
+    const record = eventRateLimitStore.get(key);
+    
     if (now > record.resetTime) {
         record.count = 0;
         record.resetTime = now + 1000;
     }
-
+    
     record.count++;
-
-    if (record.count > 10) {
-        return next(new Error('Rate limit exceeded'));
+    
+    if (record.count > maxPerSecond) {
+        return false;
     }
+    return true;
+};
 
+const rateLimitMiddleware = (socket, next) => {
     next();
 };
 
@@ -132,6 +135,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('claimSeat', (data) => {
+        if (!checkRateLimit(socket.id, 'claimSeat', 5)) {
+            log('WARN', 'Rate limit exceeded', { socketId: socket.id, event: 'claimSeat' });
+            return;
+        }
+        
         const { roomName, seatId } = data;
         log('INFO', 'claimSeat received', { socketId: socket.id, roomName, seatId });
 
@@ -159,6 +167,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('getRoomState', (data) => {
+        if (!checkRateLimit(socket.id, 'getRoomState', 10)) {
+            return;
+        }
+        
         const { roomName } = data;
         const room = rooms.get(roomName);
         if (room && room.users.has(socket.id)) {
@@ -194,6 +206,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('updateStatus', (data) => {
+        if (!checkRateLimit(socket.id, 'updateStatus', 5)) {
+            return;
+        }
+        
         const { roomName, status } = data;
 
         const room = rooms.get(roomName);
@@ -212,7 +228,11 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         log('INFO', 'Client disconnected', { socketId: socket.id });
 
-        rateLimitStore.delete(socket.id);
+        for (const key of eventRateLimitStore.keys()) {
+            if (key.startsWith(socket.id + ':')) {
+                eventRateLimitStore.delete(key);
+            }
+        }
 
         rooms.forEach((room, roomName) => {
             if (room.users.has(socket.id)) {
