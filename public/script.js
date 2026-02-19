@@ -114,6 +114,7 @@ document.querySelectorAll('.status-btn').forEach(btn => {
 });
 
 socket.on('roomState', (data) => {
+    console.log('roomState received:', { roomName: data.roomName, seats: data.seats, users: data.users });
     currentRoom = data.roomName;
     roomNameEl.textContent = getDisplayName(data.roomName);
     userCountEl.textContent = `${data.users.length} users`;
