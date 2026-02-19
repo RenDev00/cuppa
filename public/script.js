@@ -113,15 +113,7 @@ document.querySelectorAll('.status-btn').forEach(btn => {
     });
 });
 
-document.getElementById('test-claim-seat')?.addEventListener('click', () => {
-    if (currentRoom) {
-        console.log('TEST: Claiming seat 0');
-        socket.emit('claimSeat', { roomName: currentRoom, seatId: 0 });
-    }
-});
-
 socket.on('roomState', (data) => {
-    console.log('roomState received:', { roomName: data.roomName, seats: data.seats, users: data.users });
     currentRoom = data.roomName;
     roomNameEl.textContent = getDisplayName(data.roomName);
     userCountEl.textContent = `${data.users.length} users`;
@@ -135,12 +127,9 @@ socket.on('roomState', (data) => {
         seatEl.style.top = `${seat.y}px`;
         seatEl.dataset.seatId = seat.id;
 
-        console.log('Creating seat:', { id: seat.id, occupiedBy: seat.occupiedBy, isClickable: !seat.occupiedBy });
-
         if (!seat.occupiedBy) {
             seatEl.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log('SEAT CLICKED:', { seatId: seat.id, roomName: currentRoom });
                 socket.emit('claimSeat', { roomName: currentRoom, seatId: seat.id });
             });
         }
