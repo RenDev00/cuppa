@@ -143,6 +143,11 @@ io.on('connection', (socket) => {
         const { roomName, seatId } = data;
         log('INFO', 'claimSeat received', { socketId: socket.id, roomName, seatId });
 
+        if (typeof seatId !== 'number' || !Number.isInteger(seatId)) {
+            log('WARN', 'Invalid seatId type', { seatId: typeof seatId });
+            return;
+        }
+
         const room = rooms.get(roomName);
         if (!room) {
             log('WARN', 'Room not found', { roomName });
