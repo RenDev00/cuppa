@@ -196,7 +196,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const { freedSeatId } = userLeft(room, socket.id);
+        const { freedSeatId, isEmpty } = userLeft(room, socket.id);
 
         socket.leave(roomName);
         
@@ -205,6 +205,11 @@ io.on('connection', (socket) => {
             payload.seatFreed = freedSeatId;
         }
         io.to(roomName).emit('userLeft', payload);
+
+        if (isEmpty) {
+            rooms.delete(roomName);
+            log('INFO', 'Room deleted (empty)', { roomName });
+        }
 
         log('INFO', 'User left room', { socketId: socket.id, roomName });
         broadcastRoomsList();
@@ -241,13 +246,18 @@ io.on('connection', (socket) => {
 
         rooms.forEach((room, roomName) => {
             if (room.users.has(socket.id)) {
-                const { freedSeatId } = userLeft(room, socket.id);
+                const { freedSeatId, isEmpty } = userLeft(room, socket.id);
                 
                 const payload = { socketId: socket.id };
                 if (freedSeatId !== null) {
                     payload.seatFreed = freedSeatId;
                 }
                 io.to(roomName).emit('userLeft', payload);
+
+                if (isEmpty) {
+                    rooms.delete(roomName);
+                    log('INFO', 'Room deleted (empty)', { roomName });
+                }
             }
         });
 

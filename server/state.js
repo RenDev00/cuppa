@@ -104,7 +104,9 @@ export const userLeft = (room, socketId) => {
     }
   });
   
-  return { hadUser, freedSeatId };
+  const isEmpty = room.users.size === 0;
+  
+  return { hadUser, freedSeatId, isEmpty };
 };
 
 export const updateStatus = (room, socketId, status) => {
