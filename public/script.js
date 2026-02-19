@@ -137,7 +137,7 @@ socket.on('roomState', (data) => {
     });
 
     data.users.forEach(user => {
-        const seat = data.seats.find(s => s.id === user.seatId);
+        const seat = data.seats.find(s => s.occupiedBy === user.id);
         if (seat) {
             const avatarEl = document.createElement('div');
             avatarEl.className = 'avatar';
