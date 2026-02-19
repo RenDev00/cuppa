@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cuppa - Digital Workplace</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="landing">
+      <h1>Cuppa</h1>
+      <p>A digital workplace for remote teams</p>
+      <div class="join-form">
+        <input type="text" id="username" placeholder="Enter username" maxlength="16">
+        <button id="join-btn">Find a place</button>
+      </div>
+    </div>
+    <div id="workplace-selector" class="hidden">
+      <h2>Choose your workplace</h2>
+      <div id="workplaces-grid" class="workplaces-grid"></div>
+    </div>
+    <div id="room" class="hidden">
+      <div class="room-header">
+        <span id="room-name">Café</span>
+        <span id="user-count">0 users</span>
+        <button id="leave-btn">Leave</button>
+      </div>
+      <div id="seats-container"></div>
+      <div id="avatars-container"></div>
+      <div class="room-toolbar">
+        <div class="status-buttons">
+          <button class="status-btn" data-status="working">Working</button>
+          <button class="status-btn" data-status="break">On Break</button>
+          <button class="status-btn" data-status="meeting">In Meeting</button>
+          <button class="status-btn" data-status="available">Available</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/script.js"></script>
+</body>
+</html>
