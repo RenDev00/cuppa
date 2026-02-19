@@ -10,13 +10,13 @@ A digital workplace for remote teams - a lightweight, ephemeral, real-time virtu
 # Install dependencies
 npm install
 
-# Run both servers (recommended)
-npm run dev          # Frontend on http://localhost:5173
-npm run dev:server   # Backend on http://localhost:3000
+# Run both servers in separate terminals
 
-# Or run separately in two terminals
-npm run dev          # Terminal 1: Vite dev server
-npm run dev:server   # Terminal 2: Express server
+# Terminal 1 - Frontend (Vite dev server)
+npm run dev          # Opens at http://localhost:5173
+
+# Terminal 2 - Backend (Express + Socket.io)
+npm run dev:server   # Runs on http://localhost:3000
 ```
 
 ---
