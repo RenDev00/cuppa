@@ -131,8 +131,9 @@ socket.on('roomState', (data) => {
         console.log('Creating seat:', { id: seat.id, occupiedBy: seat.occupiedBy, isClickable: !seat.occupiedBy });
 
         if (!seat.occupiedBy) {
-            seatEl.addEventListener('click', () => {
-                console.log('Clicking seat:', { seatId: seat.id, roomName: currentRoom });
+            seatEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('SEAT CLICKED:', { seatId: seat.id, roomName: currentRoom });
                 socket.emit('claimSeat', { roomName: currentRoom, seatId: seat.id });
             });
         }
