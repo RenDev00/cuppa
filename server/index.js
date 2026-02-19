@@ -146,9 +146,12 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const success = claimSeat(room, socket.id, seatId);
-        if (success) {
-            log('INFO', 'Seat claimed', { socketId: socket.id, roomName, seatId });
+        const result = claimSeat(room, socket.id, seatId);
+        if (result.success) {
+            log('INFO', 'Seat claimed', { socketId: socket.id, roomName, seatId, freedSeatId: result.freedSeatId });
+            if (result.freedSeatId !== null) {
+                io.to(roomName).emit('seatFreed', { seatId: result.freedSeatId, socketId: socket.id });
+            }
             io.to(roomName).emit('seatClaimed', { seatId, socketId: socket.id });
         } else {
             log('WARN', 'Seat already occupied or invalid', { seatId });

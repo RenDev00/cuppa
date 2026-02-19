@@ -66,3 +66,59 @@ export const workplacesConfig = {
     ]
   }
 };
+
+export const claimSeat = (room, socketId, seatId) => {
+  const seat = room.seats.find(s => s.id === seatId);
+  if (!seat) return { success: false };
+  
+  if (seat.occupiedBy === socketId) return { success: true, freedSeatId: null };
+  if (seat.occupiedBy) return { success: false };
+  
+  let freedSeatId = null;
+  room.seats.forEach(s => {
+    if (s.occupiedBy === socketId) {
+      s.occupiedBy = null;
+      freedSeatId = s.id;
+    }
+  });
+  
+  seat.occupiedBy = socketId;
+  return { success: true, freedSeatId };
+};
+
+export const userJoined = (room, socketId, userData) => {
+  const user = { username: userData.username || 'Anonymous', status: userData.status || 'working' };
+  room.users.set(socketId, user);
+  return user;
+};
+
+export const userLeft = (room, socketId) => {
+  const hadUser = room.users.has(socketId);
+  room.users.delete(socketId);
+  
+  let freedSeatId = null;
+  room.seats.forEach(seat => {
+    if (seat.occupiedBy === socketId) {
+      seat.occupiedBy = null;
+      freedSeatId = seat.id;
+    }
+  });
+  
+  return { hadUser, freedSeatId };
+};
+
+export const updateStatus = (room, socketId, status) => {
+  const user = room.users.get(socketId);
+  if (!user) return false;
+  
+  user.status = status;
+  return true;
+};
+
+export const createRoom = (roomName) => {
+  const workplaceType = roomName.replace(/-[0-9]+$/, '');
+  return {
+    users: new Map(),
+    seats: JSON.parse(JSON.stringify(workplacesConfig[workplaceType]?.seats || []))
+  };
+};
