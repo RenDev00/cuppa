@@ -135,7 +135,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('claimSeat', (data) => {
-        if (!checkRateLimit(socket.id, 'claimSeat', 5)) {
+        if (!checkRateLimit(socket.id, 'claimSeat', 1)) {
             log('WARN', 'Rate limit exceeded', { socketId: socket.id, event: 'claimSeat' });
             return;
         }
@@ -206,7 +206,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('updateStatus', (data) => {
-        if (!checkRateLimit(socket.id, 'updateStatus', 5)) {
+        if (!checkRateLimit(socket.id, 'updateStatus', 1)) {
             return;
         }
         
