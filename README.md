@@ -2,145 +2,166 @@
 
 A digital workplace for remote teams - a lightweight, ephemeral, real-time virtual co-working space in pure pixel-art style. Users join instantly with zero registration or persistent data. Everything runs in server memory and disappears on disconnect/restart. Designed for <50 concurrent users per room, sub-100ms feel, <5 MB total bundle.
 
-## Architecture Plan
+---
+
+## Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Run both servers (recommended)
+npm run dev          # Frontend on http://localhost:5173
+npm run dev:server   # Backend on http://localhost:3000
+
+# Or run separately in two terminals
+npm run dev          # Terminal 1: Vite dev server
+npm run dev:server   # Terminal 2: Express server
+```
+
+---
+
+## Architecture
 
 ### Core Principles
-- No database, no accounts, no cookies beyond session.
-- Only Socket.io + Express as runtime deps.
-- Pixel-perfect aesthetic: all assets use a limited 16–32 color palette; CSS `image-rendering: pixelated;`.
-- Fixed seats only (no free movement, no pathfinding → ultra-simple).
-- One global room per workplace type initially (auto-spawn "cafe-2" when full).
-- Preload everything; optimistic UI updates; delta broadcasts.
+- **No database, no accounts, no cookies** beyond session
+- **Fixed seats only** (no free movement, no pathfinding)
+- **Single room per workplace type** - rooms persist once created, no dynamic room creation
+- **Server as source of truth** - always trust server state over client cache
 
 ### Tech Stack
-| Layer     | Choice                          | Reason |
-|-----------|---------------------------------|--------|
-| Backend   | Node.js 20 + Express + Socket.io v4 | Single binary, WebSocket rooms, in-memory Map state |
-| Frontend  | Vanilla JS (or optional Vite + Svelte 5) | Zero framework bloat option; Svelte only if you want reactivity in <10 KB |
-| Rendering | DOM + absolute-positioned `<div>`s inside a fixed 960×540 px container | Faster than Canvas for text/labels; pixelated images look perfect |
-| Hosting   | Render.com or Railway (free tier) | WebSocket support out-of-the-box, instant deploys |
+| Layer | Choice | Reason |
+|-------|--------|--------|
+| Backend | Node.js + Express + Socket.io v4 | Single binary, WebSocket rooms, in-memory Map state |
+| Frontend | Vanilla JS + Vite | Zero framework bloat, fast dev experience |
+| Rendering | DOM + absolute-positioned divs in 960×540 container | Faster than Canvas for text/labels |
 
-### Project Layout
+### Project Structure
 ```
 cuppa/
 ├── server/
-│   ├── index.js          ← Express + Socket.io
-│   └── state.js          ← in-memory rooms & seats
+│   ├── index.js          # Express + Socket.io server
+│   └── state.js          # In-memory rooms & workplaces config
 ├── public/
 │   ├── index.html
 │   ├── style.css
-│   └── script.js
+│   ├── script.js         # Client-side Socket.io logic
 │   └── assets/
-│       ├── avatars/      ← avatar-01.png … avatar-20.png (32×48 px)
-│       ├── bgs/          ← cafe.png, park.png … (960×540 px)
-│       └── icons/        ← 16×16 status icons
+│       ├── avatars/      # 32×48 px pixel characters
+│       ├── bgs/          # 960×540 px backgrounds
+│       └── icons/        # Status icons
 ├── package.json
-├── vite.config.js        ← optional (only if using Svelte/Vite)
-└── render.yaml          ← deploy template
+├── vite.config.js
+└── AGENTS.md            # Guidelines for AI agents
 ```
 
-### Asset Requirements
-- 5 workplaces: Café, Library, Park Bench, Cozy Bar, Study Loft.
-- 12–20 avatars: front-facing pixel characters
-- 8 status icons or tiny PNGs
-- All PNGs optimized; consistent palette
+---
 
-### Data Structures (server in-memory only)
-```js
-// state.js
+## Workplaces
+
+Five workplace types are configured in `server/state.js`:
+
+| Workplace | Seats | Background |
+|-----------|-------|------------|
+| Café | 10 | cafe.png |
+| Library | 10 | library.png |
+| Park | 5 | park.png |
+| Bar | 6 | bar.png |
+| Study | 8 | study.png |
+
+---
+
+## Data Structures
+
+### Server State (`server/state.js`)
+```javascript
 const workplacesConfig = {
   cafe: {
     bg: '/assets/bgs/cafe.png',
-    seats: [
-      { id: 0, x: 180, y: 320 },
-      { id: 1, x: 320, y: 310 },
-    ]
-  },
+    seats: [{ id: 0, x: 180, y: 320 }, ...]
+  }
 };
 
-const rooms = new Map(); // key: "cafe" or "cafe-2"
+const rooms = new Map(); // key: "cafe", "library", etc.
 ```
 
-Each room value:
-```js
+### Room Object
+```javascript
 {
-  users: new Map(), // socketId → { username, avatarId, seatId, status, joinedAt }
-  seats: [{id, x, y, occupiedBy: socketId | null }, …]
+  users: new Map(),  // socketId → { username, status }
+  seats: [{ id, x, y, occupiedBy: socketId | null }, ...]
 }
 ```
 
-### User Flow & Screens
-1. **Landing** - Username input + avatar grid + "Find a place"
-2. **Workplace selector** - 2×3 grid of thumbnail cards
-3. **Room view** - Full container with backgrounds, avatars, seats, toolbar
-4. **Leave** - Back to workplace selector
+---
 
-### Real-time Events (Socket.io)
-| Event                | Direction   | Payload size | Action |
-|----------------------|-------------|--------------|--------|
-| joinWorkplace        | client→server | tiny        | getOrCreateRoom, send full state |
-| roomState            | server→all  | ~1–2 KB     | full snapshot on join |
-| userJoined / userLeft| server→all  | <100 B      | delta |
-| claimSeat            | client→server | {seatId}    | atomic check & assign |
-| seatUpdated          | server→all  | delta       | move avatar |
-| updateStatus         | client→server | {status}    | optimistic then broadcast |
-| disconnect           | automatic   | —           | cleanup + broadcast leave |
+## Socket Events
 
-### Performance & Snappiness Guarantees
-- Preload all assets on landing
-- Optimistic UI: status/seat change happens instantly on client
-- Delta broadcasts after initial state
-- Max 25 users per room → auto-create "cafe-2" when full
+### Client → Server
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `joinWorkplace` | `{ type, username }` | Join a workplace room |
+| `claimSeat` | `{ roomName, seatId }` | Claim an available seat |
+| `leaveRoom` | `{ roomName }` | Leave current room |
+| `updateStatus` | `{ roomName, status }` | Update user status |
+| `getRoomState` | `{ roomName }` | Request current room state |
 
-## Getting Started
+### Server → Client
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `workplaceTypes` | `string[]` | List of available workplace types |
+| `workplaceConfig` | `{ type: seatCount }` | Seat count per workplace |
+| `roomsList` | `[{ name, userCount, maxUsers }]` | All rooms with user counts |
+| `roomState` | `{ roomName, users, seats }` | Full room snapshot |
+| `userJoined` | `{ socketId }` | User joined notification |
+| `userLeft` | `{ socketId }` | User left notification |
+| `seatUpdated` | `{ seatId, occupiedBy }` | Seat claim update |
+| `userStatusUpdated` | `{ socketId, status }` | Status change broadcast |
+| `roomFull` | `{ type }` | No available seats in room |
 
-### Prerequisites
-- Node.js 20+
+---
 
-### Installation
-```bash
-npm install
-```
+## User Flow
 
-### Development
-Start both Vite dev server and Express backend:
-```bash
-# Terminal 1 - Start backend
-npm run dev:server
+1. **Landing** - Enter username (min 3 chars)
+2. **Workplace Selector** - View all workplaces with user counts
+3. **Room View** - See seats, avatars, claim a seat, update status
+4. **Leave** - Return to workplace selector
 
-# Terminal 2 - Start frontend
-npm run dev
-```
+---
 
-Or use Vite which proxies WebSocket to port 3000:
-```bash
-npm run dev
-```
+## Security & Validation
 
-Access the app at http://localhost:5173
+All socket events include server-side validation:
+- Check user exists in room before allowing actions
+- Validate workplace type exists in config
+- Escape HTML on client to prevent XSS
+- No secrets in client-side code
 
-### Production Build
-```bash
-npm run build
-```
+---
 
-### Deploy
-Deploy to Render.com using the included `render.yaml`:
-```bash
-render blueprint create render.yaml
-```
+## Known Constraints
+
+- In-memory state is lost on server restart
+- No authentication/authorization
+- Single workplace per room (no sub-rooms)
+- Maximum users per workplace equals seat count defined in config
+- No dynamic room creation - once a workplace is full, no new rooms are created
+
+---
 
 ## API Endpoints
 
 - `GET /health` - Health check endpoint
 
-## Socket Events
+---
 
-- `joinWorkplace` - Join a workplace room
-- `roomState` - Receive room state on join
-- `userJoined` - Notification when user joins
-- `userLeft` - Notification when user leaves
-- `claimSeat` - Claim a seat in the room
-- `seatUpdated` - Seat update broadcast
-- `updateStatus` - Update user status
-- `userStatusUpdated` - Status update broadcast
+## Production
+
+```bash
+# Build frontend
+npm run build
+
+# Preview production build
+npm run preview
+```
