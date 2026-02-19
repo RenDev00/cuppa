@@ -128,6 +128,8 @@ socket.on('roomState', (data) => {
         seatEl.style.top = `${seat.y}px`;
         seatEl.dataset.seatId = seat.id;
 
+        console.log('Creating seat:', { id: seat.id, occupiedBy: seat.occupiedBy, isClickable: !seat.occupiedBy });
+
         if (!seat.occupiedBy) {
             seatEl.addEventListener('click', () => {
                 console.log('Clicking seat:', { seatId: seat.id, roomName: currentRoom });
