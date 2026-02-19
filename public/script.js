@@ -16,19 +16,14 @@ const avatarsContainer = document.getElementById('avatars-container');
 
 let currentRoom = null;
 let username = '';
-
-const roomDisplayNames = {
-    'cafe': 'Café',
-    'cafe-2': 'Café-2',
-    'cafe-3': 'Café-3',
-    'library': 'Library',
-    'park': 'Park',
-    'bar': 'Cozy Bar',
-    'study': 'Study Loft'
-};
+let cachedRooms = [];
+let workplaceTypes = [];
+let workplaceSeats = {};
 
 const getDisplayName = (roomName) => {
-    return roomDisplayNames[roomName] || roomName.charAt(0).toUpperCase() + roomName.slice(1);
+    const base = roomName.replace(/-[0-9]+$/, '');
+    if (base === 'cafe') return 'Café';
+    return base.charAt(0).toUpperCase() + base.slice(1);
 };
 
 const getPreviewClass = (roomName) => {
@@ -43,32 +38,49 @@ const escapeHtml = (str) => {
 };
 
 const renderRooms = (rooms) => {
+    if (workplaceTypes.length === 0) return;
+
+    cachedRooms = rooms;
     workplacesGrid.innerHTML = '';
-    
-    rooms.forEach(roomName => {
+
+    workplaceTypes.forEach(type => {
+        const roomData = rooms.find(r => r.name === type);
+        const userCount = roomData ? roomData.userCount : 0;
+        const maxUsers = roomData ? roomData.maxUsers : (workplaceSeats[type] || 10);
+        const isFull = roomData && userCount >= maxUsers;
+
         const card = document.createElement('div');
-        card.className = 'workplace-card';
-        card.dataset.type = roomName;
+        card.className = 'workplace-card' + (isFull ? ' full' : '');
+        card.dataset.type = type;
         card.innerHTML = `
-            <div class="preview ${getPreviewClass(roomName)}"></div>
-            <span>${getDisplayName(roomName)}</span>
+            <div class="preview ${type}-preview"></div>
+            <span>${getDisplayName(type)} (${userCount}/${maxUsers})${isFull ? ' - Full' : ''}</span>
         `;
-        
-        card.addEventListener('click', () => {
-            currentRoom = roomName;
-            workplaceSelector.classList.add('hidden');
-            room.classList.remove('hidden');
-            room.style.backgroundImage = `url(/assets/bgs/${roomName.split('-')[0]}.png)`;
-            roomNameEl.textContent = getDisplayName(roomName);
-            socket.emit('joinWorkplace', { type: roomName, username });
-        });
-        
+
+        if (!isFull) {
+            card.addEventListener('click', () => {
+                currentRoom = type;
+                workplaceSelector.classList.add('hidden');
+                room.classList.remove('hidden');
+                room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
+                roomNameEl.textContent = getDisplayName(type);
+                socket.emit('joinWorkplace', { type, username });
+            });
+        }
+
         workplacesGrid.appendChild(card);
     });
 };
 
-const defaultRooms = ['cafe', 'library', 'park', 'bar', 'study'];
-renderRooms(defaultRooms);
+socket.on('workplaceTypes', (types) => {
+    workplaceTypes = types;
+    renderRooms(cachedRooms);
+});
+
+socket.on('workplaceConfig', (config) => {
+    workplaceSeats = config;
+    renderRooms(cachedRooms);
+});
 
 joinBtn.addEventListener('click', () => {
     username = usernameInput.value.trim();
@@ -81,6 +93,9 @@ joinBtn.addEventListener('click', () => {
 });
 
 leaveBtn.addEventListener('click', () => {
+    if (currentRoom) {
+        socket.emit('leaveRoom', { roomName: currentRoom });
+    }
     currentRoom = null;
     room.classList.add('hidden');
     workplaceSelector.classList.remove('hidden');
@@ -99,6 +114,8 @@ document.querySelectorAll('.status-btn').forEach(btn => {
 });
 
 socket.on('roomState', (data) => {
+    currentRoom = data.roomName;
+    roomNameEl.textContent = getDisplayName(data.roomName);
     userCountEl.textContent = `${data.users.length} users`;
     seatsContainer.innerHTML = '';
     avatarsContainer.innerHTML = '';
@@ -137,12 +154,16 @@ socket.on('roomState', (data) => {
 
 socket.on('userJoined', (data) => {
     console.log('User joined:', data.socketId);
-    userCountEl.textContent = `${parseInt(userCountEl.textContent) + 1} users`;
+    if (currentRoom) {
+        socket.emit('getRoomState', { roomName: currentRoom });
+    }
 });
 
 socket.on('userLeft', (data) => {
     console.log('User left:', data.socketId);
-    userCountEl.textContent = `${Math.max(0, parseInt(userCountEl.textContent) - 1)} users`;
+    if (currentRoom) {
+        socket.emit('getRoomState', { roomName: currentRoom });
+    }
 });
 
 socket.on('seatUpdated', (data) => {
@@ -151,6 +172,16 @@ socket.on('seatUpdated', (data) => {
 
 socket.on('userStatusUpdated', (data) => {
     console.log('User status updated:', data);
+});
+
+socket.on('roomFull', (data) => {
+    alert('The room is full. Please try again later.');
+    currentRoom = null;
+    room.classList.add('hidden');
+    workplaceSelector.classList.remove('hidden');
+    seatsContainer.innerHTML = '';
+    avatarsContainer.innerHTML = '';
+    renderRooms(cachedRooms);
 });
 
 socket.on('connect', () => {

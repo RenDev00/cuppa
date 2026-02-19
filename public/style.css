@@ -99,6 +99,16 @@ body {
   text-align: center;
 }
 
+.workplace-card.full {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.workplace-card.full:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .workplace-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(233, 69, 96, 0.3);
@@ -136,6 +146,7 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
+  z-index: 10;
 }
 
 #leave-btn {
@@ -155,6 +166,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
+  z-index: 1;
 }
 
 .seat {
@@ -209,6 +221,7 @@ body {
   right: 0;
   padding: 12px 20px;
   background: rgba(0, 0, 0, 0.7);
+  z-index: 10;
 }
 
 .status-buttons {

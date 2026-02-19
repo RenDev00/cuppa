@@ -12,24 +12,28 @@ const log = (level, message, data = {}) => {
 };
 
 const broadcastRoomsList = () => {
-    const roomNames = Array.from(rooms.keys());
-    io.emit('roomsList', roomNames);
+    const roomList = Array.from(rooms.entries()).map(([name, room]) => ({
+        name,
+        userCount: room.users.size,
+        maxUsers: room.seats.length
+    }));
+    io.emit('roomsList', roomList);
 };
 
-const findAvailableRoom = (baseName, maxPerRoom = 10) => {
-    let roomName = baseName;
-    let counter = 2;
-    
-    while (rooms.has(roomName)) {
-        const room = rooms.get(roomName);
-        if (room.users.size < maxPerRoom) {
-            return roomName;
-        }
-        roomName = `${baseName}-${counter}`;
-        counter++;
+const findAvailableRoom = (baseName) => {
+    const workplaceType = baseName.replace(/-[0-9]+$/, '');
+    const maxPerRoom = workplacesConfig[workplaceType]?.seats.length || 10;
+
+    if (!rooms.has(baseName)) {
+        return baseName;
     }
-    
-    return roomName;
+
+    const room = rooms.get(baseName);
+    if (room.users.size < maxPerRoom) {
+        return baseName;
+    }
+
+    return null;
 };
 
 const createRoom = (roomName) => {
@@ -54,24 +58,24 @@ const rateLimitStore = new Map();
 const rateLimitMiddleware = (socket, next) => {
     const now = Date.now();
     const socketId = socket.id;
-    
+
     if (!rateLimitStore.has(socketId)) {
         rateLimitStore.set(socketId, { count: 0, resetTime: now + 1000 });
     }
-    
+
     const record = rateLimitStore.get(socketId);
-    
+
     if (now > record.resetTime) {
         record.count = 0;
         record.resetTime = now + 1000;
     }
-    
+
     record.count++;
-    
+
     if (record.count > 10) {
         return next(new Error('Rate limit exceeded'));
     }
-    
+
     next();
 };
 
@@ -86,10 +90,32 @@ app.get('/health', (req, res) => {
 io.on('connection', (socket) => {
     log('INFO', 'Client connected', { socketId: socket.id });
 
+    socket.emit('workplaceTypes', Object.keys(workplacesConfig));
+    socket.emit('workplaceConfig', Object.fromEntries(
+        Object.entries(workplacesConfig).map(([type, config]) => [type, config.seats.length])
+    ));
+    socket.emit('roomsList', Array.from(rooms.entries()).map(([name, room]) => ({
+        name,
+        userCount: room.users.size,
+        maxUsers: room.seats.length
+    })));
+
     socket.on('joinWorkplace', (data) => {
         const { type, username } = data;
         const baseRoomName = type || 'cafe';
+
+        if (!workplacesConfig[baseRoomName]) {
+            log('WARN', 'Invalid workplace type', { type: baseRoomName });
+            return;
+        }
+
         const roomName = findAvailableRoom(baseRoomName);
+
+        if (!roomName) {
+            log('WARN', 'No available room', { baseRoomName });
+            socket.emit('roomFull', { type: baseRoomName });
+            return;
+        }
 
         log('INFO', 'User joining workplace', { socketId: socket.id, roomName, username });
 
@@ -109,7 +135,7 @@ io.on('connection', (socket) => {
         });
 
         socket.to(roomName).emit('userJoined', { socketId: socket.id });
-        
+
         broadcastRoomsList();
     });
 
@@ -122,6 +148,11 @@ io.on('connection', (socket) => {
             return;
         }
 
+        if (!room.users.has(socket.id)) {
+            log('WARN', 'User not in room', { socketId: socket.id, roomName });
+            return;
+        }
+
         const seat = room.seats.find(s => s.id === seatId);
         if (seat && !seat.occupiedBy) {
             seat.occupiedBy = socket.id;
@@ -131,27 +162,59 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('getRoomState', (data) => {
+        const { roomName } = data;
+        const room = rooms.get(roomName);
+        if (room && room.users.has(socket.id)) {
+            socket.emit('roomState', {
+                roomName,
+                users: Array.from(room.users.entries()).map(([id, user]) => ({ id, ...user })),
+                seats: room.seats
+            });
+        }
+    });
+
+    socket.on('leaveRoom', (data) => {
+        const { roomName } = data;
+        const room = rooms.get(roomName);
+
+        if (!room || !room.users.has(socket.id)) {
+            log('WARN', 'User not in room', { socketId: socket.id, roomName });
+            return;
+        }
+
+        room.users.delete(socket.id);
+
+        room.seats.forEach(seat => {
+            if (seat.occupiedBy === socket.id) {
+                seat.occupiedBy = null;
+            }
+        });
+
+        socket.leave(roomName);
+        io.to(roomName).emit('userLeft', { socketId: socket.id });
+
+        log('INFO', 'User left room', { socketId: socket.id, roomName });
+        broadcastRoomsList();
+    });
+
     socket.on('updateStatus', (data) => {
         const { roomName, status } = data;
 
         const room = rooms.get(roomName);
-        if (!room) {
-            log('WARN', 'Room not found', { roomName });
+        if (!room || !room.users.has(socket.id)) {
+            log('WARN', 'User not in room', { socketId: socket.id, roomName });
             return;
         }
 
         const user = room.users.get(socket.id);
-        if (user) {
-            user.status = status;
-            io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status });
-        } else {
-            log('WARN', 'User not found in room', { socketId: socket.id, roomName });
-        }
+        user.status = status;
+        io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status });
     });
 
     socket.on('disconnect', () => {
         log('INFO', 'Client disconnected', { socketId: socket.id });
-        
+
         rateLimitStore.delete(socket.id);
 
         rooms.forEach((room, roomName) => {
@@ -167,7 +230,7 @@ io.on('connection', (socket) => {
                 io.to(roomName).emit('userLeft', { socketId: socket.id });
             }
         });
-        
+
         broadcastRoomsList();
     });
 });
