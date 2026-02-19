@@ -113,22 +113,6 @@ document.querySelectorAll('.status-btn').forEach(btn => {
     });
 });
 
-document.getElementById('debug-update-status').addEventListener('click', () => {
-    const targetSocketId = document.getElementById('debug-target-socket').value.trim();
-    const activeStatus = document.querySelector('.status-btn.active');
-    if (!activeStatus) {
-        alert('Select a status first');
-        return;
-    }
-    const status = activeStatus.dataset.status;
-    const payload = { roomName: currentRoom, status };
-    if (targetSocketId) {
-        payload.socketId = targetSocketId;
-    }
-    socket.emit('updateStatus', payload);
-    console.log('Debug updateStatus:', payload);
-});
-
 socket.on('roomState', (data) => {
     currentRoom = data.roomName;
     roomNameEl.textContent = getDisplayName(data.roomName);
@@ -182,10 +166,6 @@ socket.on('userLeft', (data) => {
     }
 });
 
-socket.on('seatUpdated', (data) => {
-    console.log('Seat updated:', data);
-});
-
 socket.on('seatClaimed', (data) => {
     console.log('Seat claimed:', data);
     if (currentRoom) {
@@ -202,6 +182,9 @@ socket.on('seatFreed', (data) => {
 
 socket.on('userStatusUpdated', (data) => {
     console.log('User status updated:', data);
+    if (currentRoom) {
+        socket.emit('getRoomState', { roomName: currentRoom });
+    }
 });
 
 socket.on('roomFull', (data) => {

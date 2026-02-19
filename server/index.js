@@ -147,6 +147,7 @@ io.on('connection', (socket) => {
 
         const success = claimSeat(room, socket.id, seatId);
         if (success) {
+            log('INFO', 'Seat claimed', { socketId: socket.id, roomName, seatId });
             io.to(roomName).emit('seatClaimed', { seatId, socketId: socket.id });
         } else {
             log('WARN', 'Seat already occupied or invalid', { seatId });
@@ -189,18 +190,18 @@ io.on('connection', (socket) => {
     });
 
     socket.on('updateStatus', (data) => {
-        const { roomName, status, socketId } = data;
-        const targetSocketId = socketId || socket.id;
+        const { roomName, status } = data;
 
         const room = rooms.get(roomName);
-        if (!room || !room.users.has(targetSocketId)) {
-            log('WARN', 'User not in room', { socketId: targetSocketId, roomName });
+        if (!room || !room.users.has(socket.id)) {
+            log('WARN', 'User not in room', { socketId: socket.id, roomName });
             return;
         }
 
-        const success = updateStatus(room, targetSocketId, status);
+        const success = updateStatus(room, socket.id, status);
         if (success) {
-            io.to(roomName).emit('userStatusUpdated', { socketId: targetSocketId, status });
+            log('INFO', 'User status updated', { socketId: socket.id, roomName, status });
+            io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status });
         }
     });
 
