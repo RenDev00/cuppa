@@ -204,11 +204,27 @@ const renderRooms = (rooms) => {
         if (!isFull) {
             card.addEventListener('click', () => {
                 currentRoom = type;
-                workplaceSelector.classList.add('hidden');
-                room.classList.remove('hidden');
-                room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
-                roomNameEl.textContent = getDisplayName(type);
-                socket.emit('joinWorkplace', { type, username: userSelection.username, avatar: userSelection.avatar });
+                
+                workplaceSelector.style.opacity = '0';
+                workplaceSelector.style.transition = 'opacity 0.3s ease';
+                
+                setTimeout(() => {
+                    workplaceSelector.classList.add('hidden');
+                    workplaceSelector.style.opacity = '';
+                    workplaceSelector.style.transition = '';
+                    
+                    room.classList.remove('hidden');
+                    room.style.opacity = '0';
+                    room.style.transition = 'opacity 0.3s ease';
+                    room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
+                    roomNameEl.textContent = getDisplayName(type);
+                    
+                    setTimeout(() => {
+                        room.style.opacity = '1';
+                    }, 50);
+                    
+                    socket.emit('joinWorkplace', { type, username: userSelection.username, avatar: userSelection.avatar });
+                }, 300);
             });
         }
 

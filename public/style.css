@@ -222,6 +222,8 @@ body {
   height: 100%;
   padding: 32px;
   position: relative;
+  opacity: 1;
+  transition: opacity 0.3s ease;
 }
 
 .back-btn {
@@ -312,6 +314,8 @@ body {
   position: relative;
   background-size: cover;
   background-position: center;
+  opacity: 1;
+  transition: opacity 0.3s ease;
 }
 
 .room-header {
