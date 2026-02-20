@@ -64,11 +64,7 @@ const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
     return true;
 };
 
-const rateLimitMiddleware = (socket, next) => {
-    next();
-};
-
-io.use(rateLimitMiddleware);
+io.use((socket, next) => next());
 
 app.use(express.static(join(__dirname, '../public')));
 
@@ -137,6 +133,11 @@ io.on('connection', (socket) => {
         const { roomName, seatId } = data;
         log('INFO', 'claimSeat received', { socketId: socket.id, roomName, seatId });
 
+        if (typeof roomName !== 'string' || roomName.length === 0 || roomName.length > 50) {
+            log('WARN', 'Invalid roomName', { roomName: typeof roomName });
+            return;
+        }
+
         if (typeof seatId !== 'number' || !Number.isInteger(seatId)) {
             log('WARN', 'Invalid seatId type', { seatId: typeof seatId });
             return;
@@ -150,6 +151,12 @@ io.on('connection', (socket) => {
 
         if (!room.users.has(socket.id)) {
             log('WARN', 'User not in room', { socketId: socket.id, roomName });
+            return;
+        }
+
+        const seatExists = room.seats.some(s => s.id === seatId);
+        if (!seatExists) {
+            log('WARN', 'Seat does not exist in room', { seatId, roomName });
             return;
         }
 
