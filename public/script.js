@@ -7,7 +7,6 @@ const workplaceSelector = document.getElementById('workplace-selector');
 const workplacesGrid = document.getElementById('workplaces-grid');
 const room = document.getElementById('room');
 const usernameInput = document.getElementById('username');
-const joinBtn = document.getElementById('join-btn');
 const leaveBtn = document.getElementById('leave-btn');
 const roomNameEl = document.getElementById('room-name');
 const userCountEl = document.getElementById('user-count');
@@ -16,9 +15,128 @@ const avatarsContainer = document.getElementById('avatars-container');
 
 let currentRoom = null;
 let username = '';
+let selectedAvatar = null;
 let cachedRooms = [];
 let workplaceTypes = [];
 let workplaceSeats = {};
+
+const adjectives = [
+  'Happy', 'Brave', 'Clever', 'Gentle', 'Swift',
+  'Calm', 'Bold', 'Kind', 'Wise', 'Mighty',
+  'Lucky', 'Proud', 'Noble', 'Quick', 'Bright',
+  'Cool', 'Eager', 'Fierce', 'Grateful', 'Heroic'
+];
+
+const nouns = [
+  'Fox', 'Bear', 'Wolf', 'Owl', 'Hawk',
+  'Lion', 'Tiger', 'Eagle', 'Panda', 'Koala',
+  'Dolphin', 'Penguin', 'Rabbit', 'Deer', 'Swan',
+  'Cat', 'Dog', 'Horse', 'Mouse', 'Frog'
+];
+
+const avatarFiles = [
+  'cat.png',
+  'dog.png',
+  'cow.png',
+  'pig.png',
+  'panda.png',
+  'sheep.png'
+];
+
+const userSelection = {
+  username: '',
+  avatar: null
+};
+
+const preloadAssets = () => {
+  const preload = document.getElementById('preload');
+  
+  avatarFiles.forEach(file => {
+    const img = new Image();
+    img.src = `/assets/avatars/${file}`;
+    preload.appendChild(img);
+  });
+  
+  const fonts = ['Tiny5-Regular.ttf', 'Jersey10-Regular.ttf'];
+  fonts.forEach(font => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'font';
+    link.type = 'font/ttf';
+    link.href = `/assets/fonts/${font}`;
+    link.crossOrigin = 'anonymous';
+    document.head.appendChild(link);
+  });
+};
+
+const generateRandomName = () => {
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  return adj + noun;
+};
+
+const renderAvatarGrid = () => {
+  const grid = document.getElementById('avatar-grid');
+  grid.innerHTML = '';
+  
+  const avatarCount = 10;
+  for (let i = 0; i < avatarCount; i++) {
+    const option = document.createElement('div');
+    
+    if (i < avatarFiles.length) {
+      const avatarFile = avatarFiles[i];
+      option.className = 'avatar-option';
+      option.dataset.avatar = avatarFile;
+      option.innerHTML = `<img src="/assets/avatars/${avatarFile}" alt="Avatar ${i + 1}">`;
+      
+      option.addEventListener('click', () => {
+        document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        selectedAvatar = avatarFile;
+        userSelection.avatar = selectedAvatar;
+        updateEnterButton();
+      });
+    } else {
+      option.className = 'avatar-option tbd';
+      option.innerHTML = '<span class="tbd-text">TBD</span>';
+    }
+    
+    grid.appendChild(option);
+  }
+};
+
+const updateEnterButton = () => {
+  const enterBtn = document.getElementById('enter-btn');
+  const username = usernameInput.value.trim();
+  const isValidUsername = username.length >= 2 && username.length <= 16;
+  const hasAvatar = selectedAvatar !== null;
+  
+  enterBtn.disabled = !(isValidUsername && hasAvatar);
+};
+
+const handleEnter = () => {
+  const username = usernameInput.value.trim();
+  if (username.length >= 2 && username.length <= 16 && selectedAvatar) {
+    userSelection.username = username;
+    userSelection.avatar = selectedAvatar;
+    
+    landing.classList.add('hidden');
+    workplaceSelector.classList.remove('hidden');
+  }
+};
+
+usernameInput.addEventListener('input', () => {
+  userSelection.username = usernameInput.value.trim();
+  updateEnterButton();
+});
+
+document.getElementById('random-name-btn').addEventListener('click', () => {
+  usernameInput.value = generateRandomName();
+  userSelection.username = usernameInput.value;
+  updateEnterButton();
+});
+
+document.getElementById('enter-btn').addEventListener('click', handleEnter);
 
 const getDisplayName = (roomName) => {
     const base = roomName.replace(/-[0-9]+$/, '');
@@ -64,7 +182,7 @@ const renderRooms = (rooms) => {
                 room.classList.remove('hidden');
                 room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
                 roomNameEl.textContent = getDisplayName(type);
-                socket.emit('joinWorkplace', { type, username });
+                socket.emit('joinWorkplace', { type, username: userSelection.username, avatar: userSelection.avatar });
             });
         }
 
@@ -80,16 +198,6 @@ socket.on('workplaceTypes', (types) => {
 socket.on('workplaceConfig', (config) => {
     workplaceSeats = config;
     renderRooms(cachedRooms);
-});
-
-joinBtn.addEventListener('click', () => {
-    username = usernameInput.value.trim();
-    if (username.length < 2) {
-        alert('Username must be at least 2 characters');
-        return;
-    }
-    landing.classList.add('hidden');
-    workplaceSelector.classList.remove('hidden');
 });
 
 leaveBtn.addEventListener('click', () => {
@@ -206,3 +314,6 @@ socket.on('roomsList', (rooms) => {
 socket.on('disconnect', () => {
     console.log('Disconnected from server');
 });
+
+renderAvatarGrid();
+preloadAssets();
