@@ -14,129 +14,162 @@ const seatsContainer = document.getElementById('seats-container');
 const avatarsContainer = document.getElementById('avatars-container');
 
 let currentRoom = null;
-let username = '';
 let selectedAvatar = null;
 let cachedRooms = [];
 let workplaceTypes = [];
 let workplaceSeats = {};
+let isTransitioning = false;
 
 const adjectives = [
-  'Happy', 'Brave', 'Clever', 'Gentle', 'Swift',
-  'Calm', 'Bold', 'Kind', 'Wise', 'Mighty',
-  'Lucky', 'Proud', 'Noble', 'Quick', 'Bright',
-  'Cool', 'Eager', 'Fierce', 'Grateful', 'Heroic'
+    'Happy', 'Brave', 'Clever', 'Gentle', 'Swift',
+    'Calm', 'Bold', 'Kind', 'Wise', 'Mighty',
+    'Lucky', 'Proud', 'Noble', 'Quick', 'Bright',
+    'Cool', 'Eager', 'Fierce', 'Grateful', 'Heroic'
 ];
 
 const nouns = [
-  'Fox', 'Bear', 'Wolf', 'Owl', 'Hawk',
-  'Lion', 'Tiger', 'Eagle', 'Panda', 'Koala',
-  'Dolphin', 'Penguin', 'Rabbit', 'Deer', 'Swan',
-  'Cat', 'Dog', 'Horse', 'Mouse', 'Frog'
+    'Fox', 'Bear', 'Wolf', 'Owl', 'Hawk',
+    'Lion', 'Tiger', 'Eagle', 'Panda', 'Koala',
+    'Dolphin', 'Penguin', 'Rabbit', 'Deer', 'Swan',
+    'Cat', 'Dog', 'Horse', 'Mouse', 'Frog'
 ];
 
 const avatarFiles = [
-  'cat.png',
-  'dog.png',
-  'cow.png',
-  'pig.png',
-  'panda.png',
-  'sheep.png'
+    'cat.png',
+    'dog.png',
+    'cow.png',
+    'pig.png',
+    'panda.png',
+    'sheep.png'
 ];
 
+const thumbnailFiles = ['café.png'];
+
 const userSelection = {
-  username: '',
-  avatar: null
+    username: '',
+    avatar: null
 };
 
 const preloadAssets = () => {
-  const preload = document.getElementById('preload');
-  
-  avatarFiles.forEach(file => {
-    const img = new Image();
-    img.src = `/assets/avatars/${file}`;
-    preload.appendChild(img);
-  });
+    avatarFiles.forEach(file => {
+        const img = new Image();
+        img.src = `/assets/avatars/${file}`;
+    });
+
+    thumbnailFiles.forEach(file => {
+        const img = new Image();
+        img.src = `/assets/thumbnails/${file}`;
+    });
 };
 
 const generateRandomName = () => {
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  return adj + noun;
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return adj + noun;
 };
 
 const renderAvatarGrid = () => {
-  const grid = document.getElementById('avatar-grid');
-  grid.innerHTML = '';
-  
-  const avatarCount = 12;
-  for (let i = 0; i < avatarCount; i++) {
-    const option = document.createElement('div');
-    
-    if (i < avatarFiles.length) {
-      const avatarFile = avatarFiles[i];
-      option.className = 'avatar-option';
-      option.dataset.avatar = avatarFile;
-      option.innerHTML = `<img src="/assets/avatars/${avatarFile}" alt="Avatar ${i + 1}">`;
-      
-      option.addEventListener('click', () => {
-        document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
-        option.classList.add('selected');
-        selectedAvatar = avatarFile;
-        userSelection.avatar = selectedAvatar;
-        updateEnterButton();
-      });
-    } else {
-      option.className = 'avatar-option empty';
-      option.innerHTML = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    const grid = document.getElementById('avatar-grid');
+    grid.innerHTML = '';
+
+    const avatarCount = 12;
+    for (let i = 0; i < avatarCount; i++) {
+        const option = document.createElement('div');
+
+        if (i < avatarFiles.length) {
+            const avatarFile = avatarFiles[i];
+            option.className = 'avatar-option';
+            option.dataset.avatar = avatarFile;
+            option.innerHTML = `<img src="/assets/avatars/${avatarFile}" alt="Avatar ${i + 1}">`;
+
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedAvatar = avatarFile;
+                userSelection.avatar = selectedAvatar;
+                updateEnterButton();
+            });
+        } else {
+            option.className = 'avatar-option empty';
+            option.innerHTML = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
         <line x1="8" y1="8" x2="92" y2="92" stroke="#9ca3af" stroke-width="7" stroke-linecap="round" />
       </svg>`;
+        }
+
+        grid.appendChild(option);
     }
-    
-    grid.appendChild(option);
-  }
 };
 
 const updateEnterButton = () => {
-  const enterBtn = document.getElementById('enter-btn');
-  const username = usernameInput.value.trim();
-  const isValidUsername = username.length >= 2 && username.length <= 16;
-  const hasAvatar = selectedAvatar !== null;
-  
-  enterBtn.disabled = !(isValidUsername && hasAvatar);
+    const enterBtn = document.getElementById('enter-btn');
+    const username = usernameInput.value.trim();
+    const isValidUsername = username.length >= 2 && username.length <= 16;
+    const hasAvatar = selectedAvatar !== null;
+
+    enterBtn.disabled = !(isValidUsername && hasAvatar);
 };
 
 const handleEnter = () => {
-  const username = usernameInput.value.trim();
-  if (username.length >= 2 && username.length <= 16 && selectedAvatar) {
-    userSelection.username = username;
-    userSelection.avatar = selectedAvatar;
-    
-    landing.classList.add('hidden');
-    workplaceSelector.classList.remove('hidden');
-  }
+    if (isTransitioning) return;
+    const username = usernameInput.value.trim();
+    if (username.length >= 2 && username.length <= 16 && selectedAvatar) {
+        isTransitioning = true;
+        userSelection.username = username;
+        userSelection.avatar = selectedAvatar;
+
+        landing.style.opacity = '0';
+        
+        setTimeout(() => {
+            landing.classList.add('hidden');
+            landing.style.opacity = '';
+            workplaceSelector.classList.remove('hidden');
+            workplaceSelector.style.opacity = '0';
+            setTimeout(() => {
+                workplaceSelector.style.opacity = '1';
+                isTransitioning = false;
+            }, 50);
+        }, 300);
+    }
 };
 
 usernameInput.addEventListener('input', () => {
-  userSelection.username = usernameInput.value.trim();
-  updateEnterButton();
+    userSelection.username = usernameInput.value.trim();
+    updateEnterButton();
 });
 
 usernameInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    const enterBtn = document.getElementById('enter-btn');
-    if (!enterBtn.disabled) {
-      handleEnter();
+    if (e.key === 'Enter') {
+        const enterBtn = document.getElementById('enter-btn');
+        if (!enterBtn.disabled) {
+            handleEnter();
+        }
     }
-  }
 });
 
 document.getElementById('random-name-btn').addEventListener('click', () => {
-  usernameInput.value = generateRandomName();
-  userSelection.username = usernameInput.value;
-  updateEnterButton();
+    usernameInput.value = generateRandomName();
+    userSelection.username = usernameInput.value;
+    updateEnterButton();
 });
 
 document.getElementById('enter-btn').addEventListener('click', handleEnter);
+
+document.getElementById('back-to-landing-btn').addEventListener('click', () => {
+    if (isTransitioning) return;
+    isTransitioning = true;
+    workplaceSelector.style.opacity = '0';
+    
+    setTimeout(() => {
+        workplaceSelector.classList.add('hidden');
+        workplaceSelector.style.opacity = '';
+        landing.classList.remove('hidden');
+        landing.style.opacity = '0';
+        setTimeout(() => {
+            landing.style.opacity = '1';
+            isTransitioning = false;
+        }, 50);
+    }, 300);
+});
 
 const getDisplayName = (roomName) => {
     const base = roomName.replace(/-[0-9]+$/, '');
@@ -155,6 +188,23 @@ const escapeHtml = (str) => {
     return div.innerHTML;
 };
 
+const getPreviewStyle = (type) => {
+    const base = type.replace(/-[0-9]+$/, '');
+    const fallbackColors = {
+        'cafe': '#4a3728',
+        'library': '#2d4a3e',
+        'park': '#3d5c3d',
+        'bar': '#4a2d3d',
+        'study': '#3d3d5c'
+    };
+    const fallbackColor = fallbackColors[base] || '#e5e7eb';
+
+    if (base === 'cafe') {
+        return `background-image: url(/assets/thumbnails/café.png)`;
+    }
+    return `background-color: ${fallbackColor}`;
+};
+
 const renderRooms = (rooms) => {
     if (workplaceTypes.length === 0) return;
 
@@ -171,18 +221,34 @@ const renderRooms = (rooms) => {
         card.className = 'workplace-card' + (isFull ? ' full' : '');
         card.dataset.type = type;
         card.innerHTML = `
-            <div class="preview ${type}-preview"></div>
-            <span>${getDisplayName(type)} (${userCount}/${maxUsers})${isFull ? ' - Full' : ''}</span>
+            <div class="preview" style="${getPreviewStyle(type)}"></div>
+            <span>${escapeHtml(getDisplayName(type))} (${userCount}/${maxUsers})${isFull ? ' - Full' : ''}</span>
         `;
 
         if (!isFull) {
             card.addEventListener('click', () => {
+                if (isTransitioning) return;
+                isTransitioning = true;
                 currentRoom = type;
-                workplaceSelector.classList.add('hidden');
-                room.classList.remove('hidden');
-                room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
-                roomNameEl.textContent = getDisplayName(type);
-                socket.emit('joinWorkplace', { type, username: userSelection.username, avatar: userSelection.avatar });
+                
+                workplaceSelector.style.opacity = '0';
+                
+                setTimeout(() => {
+                    workplaceSelector.classList.add('hidden');
+                    workplaceSelector.style.opacity = '';
+                    
+                    room.classList.remove('hidden');
+                    room.style.opacity = '0';
+                    room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
+                    roomNameEl.textContent = getDisplayName(type);
+                    
+                    setTimeout(() => {
+                        room.style.opacity = '1';
+                        isTransitioning = false;
+                    }, 50);
+                    
+                    socket.emit('joinWorkplace', { type, username: userSelection.username, avatar: userSelection.avatar });
+                }, 300);
             });
         }
 
@@ -201,14 +267,28 @@ socket.on('workplaceConfig', (config) => {
 });
 
 leaveBtn.addEventListener('click', () => {
+    if (isTransitioning) return;
+    isTransitioning = true;
+    
     if (currentRoom) {
         socket.emit('leaveRoom', { roomName: currentRoom });
     }
     currentRoom = null;
-    room.classList.add('hidden');
-    workplaceSelector.classList.remove('hidden');
-    seatsContainer.innerHTML = '';
-    avatarsContainer.innerHTML = '';
+    
+    room.style.opacity = '0';
+    
+    setTimeout(() => {
+        room.classList.add('hidden');
+        room.style.opacity = '';
+        workplaceSelector.classList.remove('hidden');
+        workplaceSelector.style.opacity = '0';
+        setTimeout(() => {
+            workplaceSelector.style.opacity = '1';
+            isTransitioning = false;
+        }, 50);
+        seatsContainer.innerHTML = '';
+        avatarsContainer.innerHTML = '';
+    }, 300);
 });
 
 document.querySelectorAll('.status-btn').forEach(btn => {
