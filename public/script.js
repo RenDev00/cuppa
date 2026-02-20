@@ -268,7 +268,17 @@ const renderRooms = (rooms) => {
                     const bgUrl = workplaceBgs[type] || `/assets/bgs/${type}.png`;
                     room.style.backgroundImage = `url(${bgUrl})`;
                     roomNameEl.textContent = getDisplayName(type);
-                    
+
+                    document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+                    const workingBtn = document.querySelector('.status-btn[data-status="working"]');
+                    if (workingBtn) {
+                        workingBtn.classList.add('active');
+                        pendingStatus = 'working';
+                        pendingEmoji = '💻';
+                        emojiInput.value = '💻';
+                        customStatusInput.value = 'Working';
+                    }
+
                     setTimeout(() => {
                         room.style.opacity = '1';
                         isTransitioning = false;
@@ -293,6 +303,15 @@ socket.on('workplaceTypes', (types) => {
     renderRooms(cachedRooms);
 });
 
+const preloadBackgrounds = () => {
+    Object.values(workplaceBgs).forEach(bgUrl => {
+        if (bgUrl) {
+            const img = new Image();
+            img.src = bgUrl;
+        }
+    });
+};
+
 socket.on('workplaceConfig', (config) => {
     workplaceSeats = {};
     workplaceBgs = {};
@@ -300,6 +319,7 @@ socket.on('workplaceConfig', (config) => {
         workplaceSeats[type] = data.seats;
         workplaceBgs[type] = data.bg;
     }
+    preloadBackgrounds();
     renderRooms(cachedRooms);
 });
 
@@ -335,18 +355,14 @@ leaveBtn.addEventListener('click', () => {
 const emojiInput = document.getElementById('emoji-input');
 const customStatusInput = document.getElementById('custom-status-input');
 
-emojiInput.addEventListener('input', (e) => {
-    const emoji = e.target.value;
-    userSelection.statusEmoji = emoji || '😊';
-    if (currentRoom) {
-        socket.emit('updateStatusEmoji', { roomName: currentRoom, emoji: userSelection.statusEmoji });
-    }
-});
+let pendingStatus = null;
+let pendingEmoji = null;
 
 customStatusInput.addEventListener('input', (e) => {
-    const customStatus = e.target.value;
-    if (currentRoom) {
-        socket.emit('updateCustomStatus', { roomName: currentRoom, customStatus });
+    if (e.target.value.trim().length > 0) {
+        document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+        pendingStatus = null;
+        pendingEmoji = null;
     }
 });
 
@@ -355,13 +371,42 @@ document.querySelectorAll('.status-btn').forEach(btn => {
         document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        const status = btn.dataset.status;
-        const emoji = btn.dataset.emoji;
+        pendingStatus = btn.dataset.status;
+        pendingEmoji = btn.dataset.emoji;
 
-        if (currentRoom) {
-            socket.emit('updateStatus', { roomName: currentRoom, status, emoji });
-        }
+        emojiInput.value = btn.dataset.emoji;
+        customStatusInput.value = btn.textContent.trim().substring(2);
     });
+});
+
+document.getElementById('update-status-btn').addEventListener('click', () => {
+    if (!currentRoom) return;
+
+    const emoji = emojiInput.value || '😊';
+    const customStatus = customStatusInput.value;
+
+    if (pendingStatus && pendingEmoji) {
+        socket.emit('updateStatus', {
+            roomName: currentRoom,
+            status: pendingStatus,
+            emoji: pendingEmoji
+        });
+    }
+
+    socket.emit('updateStatusEmoji', {
+        roomName: currentRoom,
+        emoji: emoji
+    });
+
+    if (customStatus) {
+        socket.emit('updateCustomStatus', {
+            roomName: currentRoom,
+            customStatus: customStatus
+        });
+    }
+
+    pendingStatus = null;
+    pendingEmoji = null;
 });
 
 const renderAvatars = (data) => {
@@ -476,6 +521,20 @@ socket.on('userLeft', (data) => {
 socket.on('seatClaimed', (data) => {
     console.log('Seat claimed:', data);
     if (currentRoom) {
+        if (data.socketId === socket.id && pendingStatus && pendingEmoji) {
+            socket.emit('updateStatus', {
+                roomName: currentRoom,
+                status: pendingStatus,
+                emoji: pendingEmoji
+            });
+            const customStatus = customStatusInput.value;
+            if (customStatus) {
+                socket.emit('updateCustomStatus', {
+                    roomName: currentRoom,
+                    customStatus: customStatus
+                });
+            }
+        }
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
@@ -495,6 +554,14 @@ socket.on('userStatusUpdated', (data) => {
         const statusSpan = avatarEl.querySelector('.avatar-status');
         if (statusSpan) {
             statusSpan.textContent = data.status || 'Working';
+        }
+
+        if (data.emoji) {
+            const labelTop = avatarEl.querySelector('.avatar-label-top');
+            if (labelTop) {
+                const username = labelTop.textContent.split(' ')[0];
+                labelTop.textContent = `${username} ${data.emoji}`;
+            }
         }
     }
 

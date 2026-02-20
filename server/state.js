@@ -126,11 +126,14 @@ export const userLeft = (room, socketId) => {
     return { hadUser, freedSeatId, isEmpty };
 };
 
-export const updateStatus = (room, socketId, status) => {
+export const updateStatus = (room, socketId, status, emoji) => {
     const user = room.users.get(socketId);
     if (!user) return false;
 
     user.status = status;
+    if (emoji) {
+        user.statusEmoji = emoji;
+    }
     return true;
 };
 

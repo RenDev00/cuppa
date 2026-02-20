@@ -1,78 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cuppa - Digital Workplace</title>
-  <link rel="stylesheet" href="/style.css">
-  <link rel="preload" href="/assets/fonts/Tiny5-Regular.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="/assets/fonts/Jersey10-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuppa - Digital Workplace</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="preload" href="/assets/fonts/Tiny5-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/assets/fonts/Jersey10-Regular.ttf" as="font" type="font/ttf" crossorigin>
 </head>
+
 <body>
-  <div id="app">
-    <div id="landing">
-      <div class="landing-container">
-        <div class="header">
-          <h1 class="title">Cuppa(β)</h1>
-          <p class="subtitle">a cozy online workplace</p>
-        </div>
-        
-        <div class="username-section">
-          <div class="username-row">
-            <div class="name-bar">
-              <input type="text" id="username" placeholder="Your Name" maxlength="16">
+    <div id="app">
+        <div id="landing">
+            <div class="landing-container">
+                <div class="header">
+                    <h1 class="title">Cuppa(β)</h1>
+                    <p class="subtitle">a cozy online workplace</p>
+                </div>
+
+                <div class="username-section">
+                    <div class="username-row">
+                        <div class="name-bar">
+                            <input type="text" id="username" placeholder="Your Name" maxlength="16">
+                        </div>
+                        <button id="random-name-btn" class="btn-secondary">Random</button>
+                    </div>
+                </div>
+
+                <div class="avatar-section">
+                    <div id="avatar-grid" class="avatar-grid"></div>
+                </div>
+
+                <button id="enter-btn" class="enter-btn" disabled>Enter the world</button>
             </div>
-            <button id="random-name-btn" class="btn-secondary">Random</button>
-          </div>
         </div>
-        
-        <div class="avatar-section">
-          <div id="avatar-grid" class="avatar-grid"></div>
+
+        <div id="workplace-selector" class="hidden">
+            <button id="back-to-landing-btn" class="back-btn">← Back</button>
+            <h2>Choose your workplace</h2>
+            <div id="workplaces-grid" class="workplaces-grid"></div>
         </div>
-        
-        <button id="enter-btn" class="enter-btn" disabled>Enter the world</button>
-      </div>
-    </div>
-    
-    <div id="workplace-selector" class="hidden">
-      <button id="back-to-landing-btn" class="back-btn">← Back</button>
-      <h2>Choose your workplace</h2>
-      <div id="workplaces-grid" class="workplaces-grid"></div>
-    </div>
-    
-    <div id="room" class="hidden">
-      <div class="room-header">
-        <span id="room-name">Café</span>
-        <span id="user-count">0 users</span>
-        <button id="leave-btn" class="btn-secondary">Leave</button>
-      </div>
-      <div id="seats-container"></div>
-      <div id="avatars-container"></div>
-      <div class="room-toolbar">
-        <div class="toolbar-row">
-          <div class="status-section">
-            <label class="toolbar-label">Status</label>
-            <div class="status-buttons">
-              <button class="status-btn" data-status="working" data-emoji="💻">💻 Working</button>
-              <button class="status-btn" data-status="break" data-emoji="☕">☕ On Break</button>
-              <button class="status-btn" data-status="meeting" data-emoji="📅">📅 In Meeting</button>
-              <button class="status-btn" data-status="available" data-emoji="✅">✅ Available</button>
+
+        <div id="room" class="hidden">
+            <div class="room-header">
+                <span id="room-name">Café</span>
+                <span id="user-count">0 users</span>
+                <button id="leave-btn" class="btn-secondary">Leave</button>
             </div>
-          </div>
-          <div class="emoji-section">
-            <label class="toolbar-label">Emoji</label>
-            <input type="text" id="emoji-input" class="toolbar-input" placeholder="😊" maxlength="2">
-          </div>
-          <div class="custom-status-section">
-            <label class="toolbar-label">Custom Status</label>
-            <input type="text" id="custom-status-input" class="toolbar-input" placeholder="What's happening?" maxlength="100">
-          </div>
+            <div id="seats-container"></div>
+            <div id="avatars-container"></div>
+            <div class="room-toolbar">
+                <div class="toolbar-row">
+                    <div class="status-section">
+                        <label class="toolbar-label">Status</label>
+                        <div class="status-buttons">
+                            <button class="status-btn" data-status="working" data-emoji="💻">💻 Working</button>
+                            <button class="status-btn" data-status="break" data-emoji="☕">☕ On Break</button>
+                            <button class="status-btn" data-status="meeting" data-emoji="📅">📅 In Meeting</button>
+                            <button class="status-btn" data-status="available" data-emoji="✅">✅ Available</button>
+                        </div>
+                    </div>
+                    <div class="emoji-section">
+                        <label class="toolbar-label">Emoji</label>
+                        <input type="text" id="emoji-input" class="toolbar-input" placeholder="😊" maxlength="2">
+                    </div>
+                    <div class="custom-status-section">
+                        <label class="toolbar-label">Custom Status</label>
+                        <input type="text" id="custom-status-input" class="toolbar-input"
+                            placeholder="What's happening?" maxlength="100">
+                    </div>
+                    <button id="update-status-btn" class="btn-secondary update-btn">Update</button>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-  <div id="preload"></div>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/script.js"></script>
+    <div id="preload"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/script.js"></script>
 </body>
+
 </html>

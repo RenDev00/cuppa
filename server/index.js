@@ -259,9 +259,9 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const success = updateStatus(room, socket.id, status);
+        const success = updateStatus(room, socket.id, status, emoji);
         if (success) {
-            log('INFO', 'User status updated', { socketId: socket.id, roomName, status });
+            log('INFO', 'User status updated', { socketId: socket.id, roomName, status, emoji });
             io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status, emoji });
         }
     });
