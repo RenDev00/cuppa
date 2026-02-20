@@ -56,17 +56,6 @@ const preloadAssets = () => {
     img.src = `/assets/avatars/${file}`;
     preload.appendChild(img);
   });
-  
-  const fonts = ['Tiny5-Regular.ttf', 'Jersey10-Regular.ttf'];
-  fonts.forEach(font => {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'font';
-    link.type = 'font/ttf';
-    link.href = `/assets/fonts/${font}`;
-    link.crossOrigin = 'anonymous';
-    document.head.appendChild(link);
-  });
 };
 
 const generateRandomName = () => {
@@ -130,6 +119,15 @@ const handleEnter = () => {
 usernameInput.addEventListener('input', () => {
   userSelection.username = usernameInput.value.trim();
   updateEnterButton();
+});
+
+usernameInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    const enterBtn = document.getElementById('enter-btn');
+    if (!enterBtn.disabled) {
+      handleEnter();
+    }
+  }
 });
 
 document.getElementById('random-name-btn').addEventListener('click', () => {

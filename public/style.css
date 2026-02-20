@@ -196,6 +196,7 @@ body {
   border: 2px solid #9ca3af;
   position: relative;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .avatar-option.empty:hover {
