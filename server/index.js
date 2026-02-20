@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { rooms, workplacesConfig, claimSeat, userJoined, userLeft, updateStatus, createRoom } from './state.js';
+import { rooms, workplacesConfig, claimSeat, userJoined, userLeft, updateStatus, updateStatusEmoji, updateCustomStatus, createRoom } from './state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -83,7 +83,10 @@ io.on('connection', (socket) => {
 
     socket.emit('workplaceTypes', Object.keys(workplacesConfig));
     socket.emit('workplaceConfig', Object.fromEntries(
-        Object.entries(workplacesConfig).map(([type, config]) => [type, config.seats.length])
+        Object.entries(workplacesConfig).map(([type, config]) => [type, {
+            seats: config.seats.length,
+            bg: config.bg
+        }])
     ));
     socket.emit('roomsList', Array.from(rooms.entries()).map(([name, room]) => ({
         name,
@@ -92,7 +95,7 @@ io.on('connection', (socket) => {
     })));
 
     socket.on('joinWorkplace', (data) => {
-        const { type, username } = data;
+        const { type, username, avatar, statusEmoji } = data;
         const baseRoomName = type || 'cafe';
 
         if (!workplacesConfig[baseRoomName]) {
@@ -118,7 +121,12 @@ io.on('connection', (socket) => {
         }
 
         const sanitizedUsername = sanitizeUsername(username);
-        const result = userJoined(room, socket.id, { username: sanitizedUsername, status: 'working' }, maxUsers);
+        const result = userJoined(room, socket.id, {
+            username: sanitizedUsername,
+            status: 'working',
+            avatar: avatar,
+            statusEmoji: statusEmoji || '😊'
+        }, maxUsers);
 
         if (!result.success) {
             log('WARN', 'Room full during join', { roomName, userCount: room.users.size, maxUsers });
@@ -133,7 +141,13 @@ io.on('connection', (socket) => {
             seats: room.seats
         });
 
-        socket.to(roomName).emit('userJoined', { socketId: socket.id, username: result.user.username, status: result.user.status });
+        socket.to(roomName).emit('userJoined', {
+            socketId: socket.id,
+            username: result.user.username,
+            status: result.user.status,
+            avatar: result.user.avatar,
+            statusEmoji: result.user.statusEmoji
+        });
 
         broadcastRoomsList();
     });
@@ -237,7 +251,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const { roomName, status } = data;
+        const { roomName, status, emoji } = data;
 
         const room = rooms.get(roomName);
         if (!room || !room.users.has(socket.id)) {
@@ -248,7 +262,57 @@ io.on('connection', (socket) => {
         const success = updateStatus(room, socket.id, status);
         if (success) {
             log('INFO', 'User status updated', { socketId: socket.id, roomName, status });
-            io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status });
+            io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status, emoji });
+        }
+    });
+
+    socket.on('updateStatusEmoji', (data) => {
+        if (!checkRateLimit(socket.id, 'updateStatusEmoji', 1)) {
+            return;
+        }
+
+        const { roomName, emoji } = data;
+
+        if (typeof emoji !== 'string' || emoji.length > 10) {
+            log('WARN', 'Invalid emoji', { socketId: socket.id, emoji });
+            return;
+        }
+
+        const room = rooms.get(roomName);
+        if (!room || !room.users.has(socket.id)) {
+            log('WARN', 'User not in room', { socketId: socket.id, roomName });
+            return;
+        }
+
+        const success = updateStatusEmoji(room, socket.id, emoji);
+        if (success) {
+            log('INFO', 'User status emoji updated', { socketId: socket.id, roomName, emoji });
+            io.to(roomName).emit('userStatusEmojiUpdated', { socketId: socket.id, emoji });
+        }
+    });
+
+    socket.on('updateCustomStatus', (data) => {
+        if (!checkRateLimit(socket.id, 'updateCustomStatus', 1)) {
+            return;
+        }
+
+        const { roomName, customStatus } = data;
+
+        if (typeof customStatus !== 'string' || customStatus.length > 100) {
+            log('WARN', 'Invalid custom status', { socketId: socket.id, customStatus });
+            return;
+        }
+
+        const room = rooms.get(roomName);
+        if (!room || !room.users.has(socket.id)) {
+            log('WARN', 'User not in room', { socketId: socket.id, roomName });
+            return;
+        }
+
+        const success = updateCustomStatus(room, socket.id, customStatus);
+        if (success) {
+            log('INFO', 'User custom status updated', { socketId: socket.id, roomName, customStatus });
+            io.to(roomName).emit('userCustomStatusUpdated', { socketId: socket.id, customStatus });
         }
     });
 

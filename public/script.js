@@ -18,6 +18,7 @@ let selectedAvatar = null;
 let cachedRooms = [];
 let workplaceTypes = [];
 let workplaceSeats = {};
+let workplaceBgs = {};
 let isTransitioning = false;
 
 const adjectives = [
@@ -47,7 +48,32 @@ const thumbnailFiles = ['café.png'];
 
 const userSelection = {
     username: '',
-    avatar: null
+    avatar: null,
+    statusEmoji: '😊'
+};
+
+const statusPresets = {
+    working: { text: 'Working', emoji: '💻' },
+    break: { text: 'On Break', emoji: '☕' },
+    meeting: { text: 'In Meeting', emoji: '📅' },
+    available: { text: 'Available', emoji: '✅' }
+};
+
+let timeUpdateInterval = null;
+
+const formatDuration = (ms) => {
+    if (!ms || ms <= 0) return '0m';
+    const hours = Math.floor(ms / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+};
+
+const getElapsedTime = (seatTime) => {
+    if (!seatTime) return '0m';
+    return formatDuration(Date.now() - seatTime);
 };
 
 const preloadAssets = () => {
@@ -239,7 +265,8 @@ const renderRooms = (rooms) => {
                     
                     room.classList.remove('hidden');
                     room.style.opacity = '0';
-                    room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
+                    const bgUrl = workplaceBgs[type] || `/assets/bgs/${type}.png`;
+                    room.style.backgroundImage = `url(${bgUrl})`;
                     roomNameEl.textContent = getDisplayName(type);
                     
                     setTimeout(() => {
@@ -247,7 +274,12 @@ const renderRooms = (rooms) => {
                         isTransitioning = false;
                     }, 50);
                     
-                    socket.emit('joinWorkplace', { type, username: userSelection.username, avatar: userSelection.avatar });
+                    socket.emit('joinWorkplace', {
+                        type,
+                        username: userSelection.username,
+                        avatar: userSelection.avatar,
+                        statusEmoji: userSelection.statusEmoji
+                    });
                 }, 300);
             });
         }
@@ -262,21 +294,28 @@ socket.on('workplaceTypes', (types) => {
 });
 
 socket.on('workplaceConfig', (config) => {
-    workplaceSeats = config;
+    workplaceSeats = {};
+    workplaceBgs = {};
+    for (const [type, data] of Object.entries(config)) {
+        workplaceSeats[type] = data.seats;
+        workplaceBgs[type] = data.bg;
+    }
     renderRooms(cachedRooms);
 });
 
 leaveBtn.addEventListener('click', () => {
     if (isTransitioning) return;
     isTransitioning = true;
-    
+
+    stopTimeUpdates();
+
     if (currentRoom) {
         socket.emit('leaveRoom', { roomName: currentRoom });
     }
     currentRoom = null;
-    
+
     room.style.opacity = '0';
-    
+
     setTimeout(() => {
         room.classList.add('hidden');
         room.style.opacity = '';
@@ -288,18 +327,109 @@ leaveBtn.addEventListener('click', () => {
         }, 50);
         seatsContainer.innerHTML = '';
         avatarsContainer.innerHTML = '';
+        emojiInput.value = '';
+        customStatusInput.value = '';
     }, 300);
+});
+
+const emojiInput = document.getElementById('emoji-input');
+const customStatusInput = document.getElementById('custom-status-input');
+
+emojiInput.addEventListener('input', (e) => {
+    const emoji = e.target.value;
+    userSelection.statusEmoji = emoji || '😊';
+    if (currentRoom) {
+        socket.emit('updateStatusEmoji', { roomName: currentRoom, emoji: userSelection.statusEmoji });
+    }
+});
+
+customStatusInput.addEventListener('input', (e) => {
+    const customStatus = e.target.value;
+    if (currentRoom) {
+        socket.emit('updateCustomStatus', { roomName: currentRoom, customStatus });
+    }
 });
 
 document.querySelectorAll('.status-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+
+        const status = btn.dataset.status;
+        const emoji = btn.dataset.emoji;
+
         if (currentRoom) {
-            socket.emit('updateStatus', { roomName: currentRoom, status: btn.dataset.status });
+            socket.emit('updateStatus', { roomName: currentRoom, status, emoji });
         }
     });
 });
+
+const renderAvatars = (data) => {
+    avatarsContainer.innerHTML = '';
+
+    data.users.forEach(user => {
+        const seat = data.seats.find(s => s.occupiedBy === user.id);
+        if (seat && user.avatar) {
+            const avatarEl = document.createElement('div');
+            avatarEl.className = 'avatar';
+            avatarEl.style.left = `${seat.x}px`;
+            avatarEl.style.top = `${seat.y - 40}px`;
+            avatarEl.dataset.userId = user.id;
+            avatarEl.dataset.seatTime = user.seatTime || '';
+
+            const labelTop = document.createElement('div');
+            labelTop.className = 'avatar-label-top';
+            labelTop.textContent = `@${escapeHtml(user.username)} ${user.statusEmoji || '😊'}`;
+
+            const img = document.createElement('img');
+            img.src = `/assets/avatars/${user.avatar}`;
+            img.alt = escapeHtml(user.username);
+
+            const labelBottom = document.createElement('div');
+            labelBottom.className = 'avatar-label-bottom';
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'avatar-time';
+            timeSpan.textContent = getElapsedTime(user.seatTime);
+
+            const statusSpan = document.createElement('span');
+            statusSpan.className = 'avatar-status';
+            statusSpan.textContent = user.customStatus || user.status || 'Working';
+
+            labelBottom.appendChild(timeSpan);
+            labelBottom.appendChild(statusSpan);
+
+            avatarEl.appendChild(labelTop);
+            avatarEl.appendChild(img);
+            avatarEl.appendChild(labelBottom);
+
+            avatarsContainer.appendChild(avatarEl);
+        }
+    });
+};
+
+const startTimeUpdates = () => {
+    if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+    }
+
+    timeUpdateInterval = setInterval(() => {
+        document.querySelectorAll('.avatar').forEach(avatarEl => {
+            const seatTime = parseInt(avatarEl.dataset.seatTime);
+            const timeSpan = avatarEl.querySelector('.avatar-time');
+            if (timeSpan && seatTime) {
+                timeSpan.textContent = getElapsedTime(seatTime);
+            }
+        });
+    }, 60000);
+};
+
+const stopTimeUpdates = () => {
+    if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+        timeUpdateInterval = null;
+    }
+};
 
 socket.on('roomState', (data) => {
     currentRoom = data.roomName;
@@ -325,17 +455,8 @@ socket.on('roomState', (data) => {
         seatsContainer.appendChild(seatEl);
     });
 
-    data.users.forEach(user => {
-        const seat = data.seats.find(s => s.occupiedBy === user.id);
-        if (seat) {
-            const avatarEl = document.createElement('div');
-            avatarEl.className = 'avatar';
-            avatarEl.style.left = `${seat.x}px`;
-            avatarEl.style.top = `${seat.y}px`;
-            avatarEl.textContent = escapeHtml(user.username);
-            avatarsContainer.appendChild(avatarEl);
-        }
-    });
+    renderAvatars(data);
+    startTimeUpdates();
 });
 
 socket.on('userJoined', (data) => {
@@ -368,8 +489,48 @@ socket.on('seatFreed', (data) => {
 
 socket.on('userStatusUpdated', (data) => {
     console.log('User status updated:', data);
-    if (currentRoom) {
-        socket.emit('getRoomState', { roomName: currentRoom });
+
+    const avatarEl = document.querySelector(`.avatar[data-user-id="${data.socketId}"]`);
+    if (avatarEl) {
+        const statusSpan = avatarEl.querySelector('.avatar-status');
+        if (statusSpan) {
+            statusSpan.textContent = data.status || 'Working';
+        }
+    }
+
+    if (data.socketId === socket.id && data.emoji) {
+        userSelection.statusEmoji = data.emoji;
+        emojiInput.value = data.emoji;
+    }
+});
+
+socket.on('userStatusEmojiUpdated', (data) => {
+    console.log('User status emoji updated:', data);
+
+    const avatarEl = document.querySelector(`.avatar[data-user-id="${data.socketId}"]`);
+    if (avatarEl) {
+        const labelTop = avatarEl.querySelector('.avatar-label-top');
+        if (labelTop) {
+            const username = labelTop.textContent.split(' ')[0];
+            labelTop.textContent = `${username} ${data.emoji}`;
+        }
+    }
+
+    if (data.socketId === socket.id) {
+        userSelection.statusEmoji = data.emoji;
+        emojiInput.value = data.emoji;
+    }
+});
+
+socket.on('userCustomStatusUpdated', (data) => {
+    console.log('User custom status updated:', data);
+
+    const avatarEl = document.querySelector(`.avatar[data-user-id="${data.socketId}"]`);
+    if (avatarEl) {
+        const statusSpan = avatarEl.querySelector('.avatar-status');
+        if (statusSpan) {
+            statusSpan.textContent = data.customStatus || 'Working';
+        }
     }
 });
 

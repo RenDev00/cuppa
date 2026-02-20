@@ -44,16 +44,29 @@
       <div class="room-header">
         <span id="room-name">Café</span>
         <span id="user-count">0 users</span>
-        <button id="leave-btn">Leave</button>
+        <button id="leave-btn" class="btn-secondary">Leave</button>
       </div>
       <div id="seats-container"></div>
       <div id="avatars-container"></div>
       <div class="room-toolbar">
-        <div class="status-buttons">
-          <button class="status-btn" data-status="working">Working</button>
-          <button class="status-btn" data-status="break">On Break</button>
-          <button class="status-btn" data-status="meeting">In Meeting</button>
-          <button class="status-btn" data-status="available">Available</button>
+        <div class="toolbar-row">
+          <div class="status-section">
+            <label class="toolbar-label">Status</label>
+            <div class="status-buttons">
+              <button class="status-btn" data-status="working" data-emoji="💻">💻 Working</button>
+              <button class="status-btn" data-status="break" data-emoji="☕">☕ On Break</button>
+              <button class="status-btn" data-status="meeting" data-emoji="📅">📅 In Meeting</button>
+              <button class="status-btn" data-status="available" data-emoji="✅">✅ Available</button>
+            </div>
+          </div>
+          <div class="emoji-section">
+            <label class="toolbar-label">Emoji</label>
+            <input type="text" id="emoji-input" class="toolbar-input" placeholder="😊" maxlength="2">
+          </div>
+          <div class="custom-status-section">
+            <label class="toolbar-label">Custom Status</label>
+            <input type="text" id="custom-status-input" class="toolbar-input" placeholder="What's happening?" maxlength="100">
+          </div>
         </div>
       </div>
     </div>

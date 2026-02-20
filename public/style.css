@@ -326,21 +326,33 @@ body {
   left: 0;
   right: 0;
   padding: 12px 20px;
-  background: rgba(0, 0, 0, 0.7);
+  background: #e5e7eb;
+  border-bottom: 3px solid #9ca3af;
   display: flex;
   align-items: center;
   gap: 20px;
   z-index: 10;
 }
 
+#room-name {
+  font-family: 'Jersey10', system-ui, sans-serif;
+  font-size: 28px;
+  color: #1f2937;
+  letter-spacing: 0.1em;
+}
+
+#user-count {
+  font-family: 'Tiny5', cursive;
+  font-size: 14px;
+  color: #6b7280;
+  letter-spacing: 1px;
+}
+
 #leave-btn {
   margin-left: auto;
-  padding: 8px 16px;
-  background: #e94560;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+  padding: 0 24px;
+  height: 42px;
+  font-size: 20px;
 }
 
 #seats-container,
@@ -356,34 +368,46 @@ body {
 
 .seat {
   position: absolute;
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 2px dashed rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
   cursor: pointer;
-  transition: background 0.2s;
   pointer-events: auto;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.seat:hover {
-  background: rgba(233, 69, 96, 0.4);
+.seat::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 16px solid rgba(156, 163, 175, 0.6);
+  transition: border-top-color 0.2s;
+}
+
+.seat:hover::after {
+  border-top-color: #f59e0b;
 }
 
 .seat.occupied {
-  background: transparent;
-  border: none;
   cursor: default;
+}
+
+.seat.occupied::after {
+  display: none;
 }
 
 .avatar {
   position: absolute;
-  width: 48px;
+  width: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   pointer-events: none;
+  transform: translate(-8px, 0);
 }
 
 .avatar img {
@@ -392,14 +416,46 @@ body {
   image-rendering: pixelated;
 }
 
-.avatar .label {
-  font-size: 10px;
-  background: rgba(0, 0, 0, 0.7);
+.avatar-label-top {
+  font-family: 'Tiny5', cursive;
+  font-size: 11px;
+  color: #1f2937;
+  background: rgba(255, 255, 255, 0.9);
   padding: 2px 6px;
   border-radius: 4px;
-  margin-top: 4px;
+  margin-bottom: 2px;
   text-align: center;
   white-space: nowrap;
+  border: 2px solid #9ca3af;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-label-bottom {
+  font-family: 'Tiny5', cursive;
+  font-size: 10px;
+  color: #4b5563;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+  border: 2px solid #9ca3af;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.avatar-time {
+  font-size: 9px;
+  color: #6b7280;
+}
+
+.avatar-status {
+  font-size: 10px;
+  color: #1f2937;
 }
 
 .room-toolbar {
@@ -407,32 +463,93 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px 20px;
-  background: rgba(0, 0, 0, 0.7);
+  padding: 16px 20px;
+  background: #e5e7eb;
+  border-top: 3px solid #9ca3af;
   z-index: 10;
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emoji-section,
+.custom-status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toolbar-label {
+  font-family: 'Tiny5', cursive;
+  font-size: 12px;
+  color: #6b7280;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .status-buttons {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .status-btn {
   padding: 8px 16px;
-  background: #2d2d4a;
-  color: #fff;
-  border: none;
+  background: #fff;
+  color: #4b5563;
+  border: 3px solid #9ca3af;
   border-radius: 4px;
   cursor: pointer;
-  transition: background 0.2s;
+  font-family: 'Jersey10', system-ui, sans-serif;
+  font-size: 16px;
+  transition: all 0.15s ease;
 }
 
 .status-btn:hover {
-  background: #3d3d6a;
+  background: #f3f4f6;
+  border-color: #6b7280;
+  transform: translateY(-1px);
 }
 
 .status-btn.active {
-  background: #e94560;
+  background: #fff;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+}
+
+.toolbar-input {
+  height: 42px;
+  padding: 0 12px;
+  background: #fff;
+  border: 3px solid #9ca3af;
+  border-radius: 4px;
+  font-family: 'Jersey10', system-ui, sans-serif;
+  font-size: 18px;
+  color: #4b5563;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.toolbar-input:focus {
+  border-color: #6b7280;
+}
+
+#emoji-input {
+  width: 60px;
+  text-align: center;
+  font-size: 24px;
+}
+
+#custom-status-input {
+  width: 200px;
 }
 
 #preload {
