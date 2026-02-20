@@ -19,6 +19,7 @@ let cachedRooms = [];
 let workplaceTypes = [];
 let workplaceSeats = {};
 let workplaceBgs = {};
+let workplaceDimensions = {};
 let isTransitioning = false;
 
 const adjectives = [
@@ -266,7 +267,10 @@ const renderRooms = (rooms) => {
                     room.classList.remove('hidden');
                     room.style.opacity = '0';
                     const bgUrl = workplaceBgs[type] || `/assets/bgs/${type}.png`;
-                    room.style.backgroundImage = `url(${bgUrl})`;
+                    const roomContent = document.getElementById('room-content');
+                    if (roomContent) {
+                        roomContent.style.backgroundImage = `url(${bgUrl})`;
+                    }
                     roomNameEl.textContent = getDisplayName(type);
 
                     document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
@@ -315,9 +319,11 @@ const preloadBackgrounds = () => {
 socket.on('workplaceConfig', (config) => {
     workplaceSeats = {};
     workplaceBgs = {};
+    workplaceDimensions = {};
     for (const [type, data] of Object.entries(config)) {
         workplaceSeats[type] = data.seats;
         workplaceBgs[type] = data.bg;
+        workplaceDimensions[type] = { width: data.bgWidth, height: data.bgHeight };
     }
     preloadBackgrounds();
     renderRooms(cachedRooms);
@@ -409,18 +415,23 @@ document.getElementById('update-status-btn').addEventListener('click', () => {
     pendingEmoji = null;
 });
 
-const renderAvatars = (data) => {
+const renderAvatars = (data, bgWidth, bgHeight, containerWidth, containerHeight) => {
     avatarsContainer.innerHTML = '';
 
     data.users.forEach(user => {
         const seat = data.seats.find(s => s.occupiedBy === user.id);
         if (seat && user.avatar) {
+            const pos = calculateSeatPosition(seat, bgWidth, bgHeight, containerWidth, containerHeight);
+
+            const avatarWrapper = document.createElement('div');
+            avatarWrapper.className = 'avatar-wrapper';
+            avatarWrapper.style.left = `${pos.x}px`;
+            avatarWrapper.style.top = `${pos.y}px`;
+            avatarWrapper.dataset.userId = user.id;
+            avatarWrapper.dataset.seatTime = user.seatTime || '';
+
             const avatarEl = document.createElement('div');
             avatarEl.className = 'avatar';
-            avatarEl.style.left = `${seat.x}px`;
-            avatarEl.style.top = `${seat.y - 40}px`;
-            avatarEl.dataset.userId = user.id;
-            avatarEl.dataset.seatTime = user.seatTime || '';
 
             const labelTop = document.createElement('div');
             labelTop.className = 'avatar-label-top';
@@ -448,7 +459,8 @@ const renderAvatars = (data) => {
             avatarEl.appendChild(img);
             avatarEl.appendChild(labelBottom);
 
-            avatarsContainer.appendChild(avatarEl);
+            avatarWrapper.appendChild(avatarEl);
+            avatarsContainer.appendChild(avatarWrapper);
         }
     });
 };
@@ -459,9 +471,9 @@ const startTimeUpdates = () => {
     }
 
     timeUpdateInterval = setInterval(() => {
-        document.querySelectorAll('.avatar').forEach(avatarEl => {
-            const seatTime = parseInt(avatarEl.dataset.seatTime);
-            const timeSpan = avatarEl.querySelector('.avatar-time');
+        document.querySelectorAll('.avatar-wrapper').forEach(avatarWrapper => {
+            const seatTime = parseInt(avatarWrapper.dataset.seatTime);
+            const timeSpan = avatarWrapper.querySelector('.avatar-time');
             if (timeSpan && seatTime) {
                 timeSpan.textContent = getElapsedTime(seatTime);
             }
@@ -476,18 +488,52 @@ const stopTimeUpdates = () => {
     }
 };
 
-socket.on('roomState', (data) => {
-    currentRoom = data.roomName;
-    roomNameEl.textContent = getDisplayName(data.roomName);
-    userCountEl.textContent = `${data.users.length} users`;
+const calculateSeatPosition = (seat, bgWidth, bgHeight, containerWidth, containerHeight) => {
+    const bgAspect = bgWidth / bgHeight;
+    const containerAspect = containerWidth / containerHeight;
+    
+    let renderWidth, renderHeight, offsetX, offsetY;
+    
+    if (containerAspect > bgAspect) {
+        renderHeight = containerHeight;
+        renderWidth = renderHeight * bgAspect;
+        offsetX = (containerWidth - renderWidth) / 2;
+        offsetY = 0;
+    } else {
+        renderWidth = containerWidth;
+        renderHeight = renderWidth / bgAspect;
+        offsetX = 0;
+        offsetY = (containerHeight - renderHeight) / 2;
+    }
+    
+    const x = offsetX + seat.x * renderWidth;
+    const y = offsetY + seat.y * renderHeight;
+    
+    return { x, y, renderWidth, renderHeight, offsetX, offsetY };
+};
+
+let currentRoomData = null;
+let currentBgDimensions = null;
+
+const renderRoom = () => {
+    if (!currentRoomData || !currentBgDimensions) return;
+    
+    const roomContent = document.getElementById('room-content');
+    if (!roomContent) return;
+    
+    const containerWidth = roomContent.clientWidth;
+    const containerHeight = roomContent.clientHeight;
+    const { width: bgWidth, height: bgHeight } = currentBgDimensions;
+
     seatsContainer.innerHTML = '';
     avatarsContainer.innerHTML = '';
 
-    data.seats.forEach(seat => {
+    currentRoomData.seats.forEach(seat => {
+        const pos = calculateSeatPosition(seat, bgWidth, bgHeight, containerWidth, containerHeight);
         const seatEl = document.createElement('div');
         seatEl.className = 'seat' + (seat.occupiedBy ? ' occupied' : '');
-        seatEl.style.left = `${seat.x}px`;
-        seatEl.style.top = `${seat.y}px`;
+        seatEl.style.left = `${pos.x}px`;
+        seatEl.style.top = `${pos.y}px`;
         seatEl.dataset.seatId = seat.id;
 
         if (!seat.occupiedBy) {
@@ -500,8 +546,25 @@ socket.on('roomState', (data) => {
         seatsContainer.appendChild(seatEl);
     });
 
-    renderAvatars(data);
+    renderAvatars(currentRoomData, bgWidth, bgHeight, containerWidth, containerHeight);
+};
+
+socket.on('roomState', (data) => {
+    currentRoom = data.roomName;
+    currentRoomData = data;
+    currentBgDimensions = workplaceDimensions[currentRoom] || { width: 960, height: 540 };
+    
+    roomNameEl.textContent = getDisplayName(data.roomName);
+    userCountEl.textContent = `${data.users.length} users`;
+    
+    renderRoom();
     startTimeUpdates();
+});
+
+window.addEventListener('resize', () => {
+    if (currentRoom && !room.classList.contains('hidden')) {
+        renderRoom();
+    }
 });
 
 socket.on('userJoined', (data) => {
@@ -549,15 +612,15 @@ socket.on('seatFreed', (data) => {
 socket.on('userStatusUpdated', (data) => {
     console.log('User status updated:', data);
 
-    const avatarEl = document.querySelector(`.avatar[data-user-id="${data.socketId}"]`);
-    if (avatarEl) {
-        const statusSpan = avatarEl.querySelector('.avatar-status');
+    const avatarWrapper = document.querySelector(`.avatar-wrapper[data-user-id="${data.socketId}"]`);
+    if (avatarWrapper) {
+        const statusSpan = avatarWrapper.querySelector('.avatar-status');
         if (statusSpan) {
             statusSpan.textContent = data.status || 'Working';
         }
 
         if (data.emoji) {
-            const labelTop = avatarEl.querySelector('.avatar-label-top');
+            const labelTop = avatarWrapper.querySelector('.avatar-label-top');
             if (labelTop) {
                 const username = labelTop.textContent.split(' ')[0];
                 labelTop.textContent = `${username} ${data.emoji}`;
@@ -574,9 +637,9 @@ socket.on('userStatusUpdated', (data) => {
 socket.on('userStatusEmojiUpdated', (data) => {
     console.log('User status emoji updated:', data);
 
-    const avatarEl = document.querySelector(`.avatar[data-user-id="${data.socketId}"]`);
-    if (avatarEl) {
-        const labelTop = avatarEl.querySelector('.avatar-label-top');
+    const avatarWrapper = document.querySelector(`.avatar-wrapper[data-user-id="${data.socketId}"]`);
+    if (avatarWrapper) {
+        const labelTop = avatarWrapper.querySelector('.avatar-label-top');
         if (labelTop) {
             const username = labelTop.textContent.split(' ')[0];
             labelTop.textContent = `${username} ${data.emoji}`;
@@ -592,9 +655,9 @@ socket.on('userStatusEmojiUpdated', (data) => {
 socket.on('userCustomStatusUpdated', (data) => {
     console.log('User custom status updated:', data);
 
-    const avatarEl = document.querySelector(`.avatar[data-user-id="${data.socketId}"]`);
-    if (avatarEl) {
-        const statusSpan = avatarEl.querySelector('.avatar-status');
+    const avatarWrapper = document.querySelector(`.avatar-wrapper[data-user-id="${data.socketId}"]`);
+    if (avatarWrapper) {
+        const statusSpan = avatarWrapper.querySelector('.avatar-status');
         if (statusSpan) {
             statusSpan.textContent = data.customStatus || 'Working';
         }

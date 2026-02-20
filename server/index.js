@@ -85,7 +85,9 @@ io.on('connection', (socket) => {
     socket.emit('workplaceConfig', Object.fromEntries(
         Object.entries(workplacesConfig).map(([type, config]) => [type, {
             seats: config.seats.length,
-            bg: config.bg
+            bg: config.bg,
+            bgWidth: config.bgWidth,
+            bgHeight: config.bgHeight
         }])
     ));
     socket.emit('roomsList', Array.from(rooms.entries()).map(([name, room]) => ({
