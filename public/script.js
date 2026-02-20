@@ -14,11 +14,11 @@ const seatsContainer = document.getElementById('seats-container');
 const avatarsContainer = document.getElementById('avatars-container');
 
 let currentRoom = null;
-let username = '';
 let selectedAvatar = null;
 let cachedRooms = [];
 let workplaceTypes = [];
 let workplaceSeats = {};
+let isTransitioning = false;
 
 const adjectives = [
     'Happy', 'Brave', 'Clever', 'Gentle', 'Swift',
@@ -110,8 +110,10 @@ const updateEnterButton = () => {
 };
 
 const handleEnter = () => {
+    if (isTransitioning) return;
     const username = usernameInput.value.trim();
     if (username.length >= 2 && username.length <= 16 && selectedAvatar) {
+        isTransitioning = true;
         userSelection.username = username;
         userSelection.avatar = selectedAvatar;
 
@@ -124,6 +126,7 @@ const handleEnter = () => {
             workplaceSelector.style.opacity = '0';
             setTimeout(() => {
                 workplaceSelector.style.opacity = '1';
+                isTransitioning = false;
             }, 50);
         }, 300);
     }
@@ -152,6 +155,8 @@ document.getElementById('random-name-btn').addEventListener('click', () => {
 document.getElementById('enter-btn').addEventListener('click', handleEnter);
 
 document.getElementById('back-to-landing-btn').addEventListener('click', () => {
+    if (isTransitioning) return;
+    isTransitioning = true;
     workplaceSelector.style.opacity = '0';
     
     setTimeout(() => {
@@ -161,6 +166,7 @@ document.getElementById('back-to-landing-btn').addEventListener('click', () => {
         landing.style.opacity = '0';
         setTimeout(() => {
             landing.style.opacity = '1';
+            isTransitioning = false;
         }, 50);
     }, 300);
 });
@@ -221,24 +227,24 @@ const renderRooms = (rooms) => {
 
         if (!isFull) {
             card.addEventListener('click', () => {
+                if (isTransitioning) return;
+                isTransitioning = true;
                 currentRoom = type;
                 
                 workplaceSelector.style.opacity = '0';
-                workplaceSelector.style.transition = 'opacity 0.3s ease';
                 
                 setTimeout(() => {
                     workplaceSelector.classList.add('hidden');
                     workplaceSelector.style.opacity = '';
-                    workplaceSelector.style.transition = '';
                     
                     room.classList.remove('hidden');
                     room.style.opacity = '0';
-                    room.style.transition = 'opacity 0.3s ease';
                     room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
                     roomNameEl.textContent = getDisplayName(type);
                     
                     setTimeout(() => {
                         room.style.opacity = '1';
+                        isTransitioning = false;
                     }, 50);
                     
                     socket.emit('joinWorkplace', { type, username: userSelection.username, avatar: userSelection.avatar });
@@ -261,6 +267,9 @@ socket.on('workplaceConfig', (config) => {
 });
 
 leaveBtn.addEventListener('click', () => {
+    if (isTransitioning) return;
+    isTransitioning = true;
+    
     if (currentRoom) {
         socket.emit('leaveRoom', { roomName: currentRoom });
     }
@@ -275,6 +284,7 @@ leaveBtn.addEventListener('click', () => {
         workplaceSelector.style.opacity = '0';
         setTimeout(() => {
             workplaceSelector.style.opacity = '1';
+            isTransitioning = false;
         }, 50);
         seatsContainer.innerHTML = '';
         avatarsContainer.innerHTML = '';

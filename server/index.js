@@ -11,6 +11,17 @@ const log = (level, message, data = {}) => {
     console.log(`[${new Date().toISOString()}] [${level}] ${message}`, data);
 };
 
+const sanitizeUsername = (username) => {
+    if (typeof username !== 'string') return 'Anonymous';
+    return username
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .slice(0, 50);
+};
+
 const broadcastRoomsList = () => {
     const roomList = Array.from(rooms.entries()).map(([name, room]) => ({
         name,
@@ -106,7 +117,8 @@ io.on('connection', (socket) => {
             rooms.set(roomName, room);
         }
 
-        const result = userJoined(room, socket.id, { username, status: 'working' }, maxUsers);
+        const sanitizedUsername = sanitizeUsername(username);
+        const result = userJoined(room, socket.id, { username: sanitizedUsername, status: 'working' }, maxUsers);
 
         if (!result.success) {
             log('WARN', 'Room full during join', { roomName, userCount: room.users.size, maxUsers });
