@@ -86,11 +86,14 @@ export const claimSeat = (room, socketId, seatId) => {
   return { success: true, freedSeatId };
 };
 
-export const userJoined = (room, socketId, userData) => {
+export const userJoined = (room, socketId, userData, maxUsers) => {
+  if (maxUsers && room.users.size >= maxUsers) {
+    return { success: false, reason: 'room_full' };
+  }
   const username = (userData.username || 'Anonymous').slice(0, 50);
   const user = { username, status: userData.status || 'working' };
   room.users.set(socketId, user);
-  return user;
+  return { success: true, user };
 };
 
 export const userLeft = (room, socketId) => {

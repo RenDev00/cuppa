@@ -21,13 +21,8 @@ const broadcastRoomsList = () => {
 };
 
 const findAvailableRoom = (baseName) => {
-    const workplaceType = baseName.replace(/-[0-9]+$/, '');
-    const maxPerRoom = workplacesConfig[workplaceType]?.seats.length || 10;
-
     if (!rooms.has(baseName)) return baseName;
-
-    const room = rooms.get(baseName);
-    return room.users.size < maxPerRoom ? baseName : null;
+    return baseName;
 };
 
 const app = express();
@@ -95,6 +90,7 @@ io.on('connection', (socket) => {
         }
 
         const roomName = findAvailableRoom(baseRoomName);
+        const maxUsers = workplacesConfig[baseRoomName]?.seats.length || 10;
 
         if (!roomName) {
             log('WARN', 'No available room', { baseRoomName });
@@ -110,7 +106,13 @@ io.on('connection', (socket) => {
             rooms.set(roomName, room);
         }
 
-        const user = userJoined(room, socket.id, { username, status: 'working' });
+        const result = userJoined(room, socket.id, { username, status: 'working' }, maxUsers);
+
+        if (!result.success) {
+            log('WARN', 'Room full during join', { roomName, userCount: room.users.size, maxUsers });
+            socket.emit('roomFull', { type: baseRoomName });
+            return;
+        }
 
         socket.join(roomName);
         socket.emit('roomState', {
@@ -119,7 +121,7 @@ io.on('connection', (socket) => {
             seats: room.seats
         });
 
-        socket.to(roomName).emit('userJoined', { socketId: socket.id, username: user.username, status: user.status });
+        socket.to(roomName).emit('userJoined', { socketId: socket.id, username: result.user.username, status: result.user.status });
 
         broadcastRoomsList();
     });

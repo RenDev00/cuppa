@@ -145,9 +145,9 @@ socket.on('roomState', (data) => {
             avatarEl.style.left = `${seat.x}px`;
             avatarEl.style.top = `${seat.y}px`;
             avatarEl.innerHTML = `
-        <img src="/assets/avatars/${user.avatarId || '01'}.png" alt="${escapeHtml(user.username)}">
-        <div class="label">${escapeHtml(user.username)}</div>
-      `;
+                <img src="/assets/avatars/${user.avatarId || '01'}.png" alt="${escapeHtml(user.username)}">
+                <div class="label">${escapeHtml(user.username)}</div>
+            `;
             avatarsContainer.appendChild(avatarEl);
         }
     });
