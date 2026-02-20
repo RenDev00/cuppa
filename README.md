@@ -19,6 +19,16 @@ npm run dev          # Opens at http://localhost:5173
 npm run dev:server   # Runs on http://localhost:3000
 ```
 
+### Production
+
+```bash
+# Build frontend
+npm run build
+
+# Preview production build
+npm run preview
+```
+
 ---
 
 ## Architecture
@@ -35,6 +45,7 @@ npm run dev:server   # Runs on http://localhost:3000
 | Backend | Node.js + Express + Socket.io v4 | Single binary, WebSocket rooms, in-memory Map state |
 | Frontend | Vanilla JS + Vite | Zero framework bloat, fast dev experience |
 | Rendering | DOM + absolute-positioned divs in 960×540 container | Faster than Canvas for text/labels |
+| Fonts | Jersey10, Tiny5 | Pixel-art themed typography |
 
 ### Project Structure
 ```
@@ -47,12 +58,14 @@ cuppa/
 │   ├── style.css
 │   ├── script.js         # Client-side Socket.io logic
 │   └── assets/
-│       ├── avatars/      # 32×48 px pixel characters
+│       ├── avatars/      # Pixel character sprites
 │       ├── bgs/          # 960×540 px backgrounds
+│       ├── fonts/        # Jersey10, Tiny5 fonts
 │       └── icons/        # Status icons
 ├── package.json
 ├── vite.config.js
-└── AGENTS.md            # Guidelines for AI agents
+├── AGENTS.md            # Guidelines for AI agents
+└── README.md
 ```
 
 ---
@@ -88,9 +101,17 @@ const rooms = new Map(); // key: "cafe", "library", etc.
 ### Room Object
 ```javascript
 {
-  users: new Map(),  // socketId → { username, status }
+  users: new Map(),  // socketId → { username, avatar, status }
   seats: [{ id, x, y, occupiedBy: socketId | null }, ...]
 }
+```
+
+### User Selection (Client)
+```javascript
+const userSelection = {
+  username: string,   // 2-16 characters
+  avatar: string     // avatar filename (e.g., "cat.png")
+};
 ```
 
 ---
@@ -100,7 +121,7 @@ const rooms = new Map(); // key: "cafe", "library", etc.
 ### Client → Server
 | Event | Payload | Description |
 |-------|---------|-------------|
-| `joinWorkplace` | `{ type, username }` | Join a workplace room |
+| `joinWorkplace` | `{ type, username, avatar }` | Join a workplace room |
 | `claimSeat` | `{ roomName, seatId }` | Claim an available seat |
 | `leaveRoom` | `{ roomName }` | Leave current room |
 | `updateStatus` | `{ roomName, status }` | Update user status |
@@ -113,9 +134,10 @@ const rooms = new Map(); // key: "cafe", "library", etc.
 | `workplaceConfig` | `{ type: seatCount }` | Seat count per workplace |
 | `roomsList` | `[{ name, userCount, maxUsers }]` | All rooms with user counts |
 | `roomState` | `{ roomName, users, seats }` | Full room snapshot |
-| `userJoined` | `{ socketId }` | User joined notification |
-| `userLeft` | `{ socketId }` | User left notification |
-| `seatUpdated` | `{ seatId, occupiedBy }` | Seat claim update |
+| `userJoined` | `{ socketId, username, avatar }` | User joined notification |
+| `userLeft` | `{ socketId, seatFreed }` | User left notification |
+| `seatClaimed` | `{ seatId, socketId }` | Seat claimed update |
+| `seatFreed` | `{ seatId }` | Seat freed update |
 | `userStatusUpdated` | `{ socketId, status }` | Status change broadcast |
 | `roomFull` | `{ type }` | No available seats in room |
 
@@ -123,7 +145,7 @@ const rooms = new Map(); // key: "cafe", "library", etc.
 
 ## User Flow
 
-1. **Landing** - Enter username (min 3 chars)
+1. **Landing** - Enter username (2-16 chars), select avatar
 2. **Workplace Selector** - View all workplaces with user counts
 3. **Room View** - See seats, avatars, claim a seat, update status
 4. **Leave** - Return to workplace selector
@@ -133,10 +155,25 @@ const rooms = new Map(); // key: "cafe", "library", etc.
 ## Security & Validation
 
 All socket events include server-side validation:
+- Type validation (numbers are integers, strings are within length limits)
+- Existence validation (room exists, user in room, seat exists)
 - Check user exists in room before allowing actions
-- Validate workplace type exists in config
 - Escape HTML on client to prevent XSS
 - No secrets in client-side code
+
+---
+
+## Testing
+
+No test framework is currently configured. To add tests with Vitest:
+
+```bash
+npm install -D vitest
+# Add to package.json: "test": "vitest"
+npm test              # Run all tests
+npm test -- --run     # Run tests once (CI mode)
+npm test -- file.js   # Run specific file
+```
 
 ---
 
@@ -156,12 +193,6 @@ All socket events include server-side validation:
 
 ---
 
-## Production
+## Credits
 
-```bash
-# Build frontend
-npm run build
-
-# Preview production build
-npm run preview
-```
+- Fonts: [Tiny5](https://fonts.google.com/specimen/Tiny5), [Jersey 10](https://fonts.google.com/specimen/Jersey+10) (Google Fonts)
