@@ -21,122 +21,135 @@ let workplaceTypes = [];
 let workplaceSeats = {};
 
 const adjectives = [
-  'Happy', 'Brave', 'Clever', 'Gentle', 'Swift',
-  'Calm', 'Bold', 'Kind', 'Wise', 'Mighty',
-  'Lucky', 'Proud', 'Noble', 'Quick', 'Bright',
-  'Cool', 'Eager', 'Fierce', 'Grateful', 'Heroic'
+    'Happy', 'Brave', 'Clever', 'Gentle', 'Swift',
+    'Calm', 'Bold', 'Kind', 'Wise', 'Mighty',
+    'Lucky', 'Proud', 'Noble', 'Quick', 'Bright',
+    'Cool', 'Eager', 'Fierce', 'Grateful', 'Heroic'
 ];
 
 const nouns = [
-  'Fox', 'Bear', 'Wolf', 'Owl', 'Hawk',
-  'Lion', 'Tiger', 'Eagle', 'Panda', 'Koala',
-  'Dolphin', 'Penguin', 'Rabbit', 'Deer', 'Swan',
-  'Cat', 'Dog', 'Horse', 'Mouse', 'Frog'
+    'Fox', 'Bear', 'Wolf', 'Owl', 'Hawk',
+    'Lion', 'Tiger', 'Eagle', 'Panda', 'Koala',
+    'Dolphin', 'Penguin', 'Rabbit', 'Deer', 'Swan',
+    'Cat', 'Dog', 'Horse', 'Mouse', 'Frog'
 ];
 
 const avatarFiles = [
-  'cat.png',
-  'dog.png',
-  'cow.png',
-  'pig.png',
-  'panda.png',
-  'sheep.png'
+    'cat.png',
+    'dog.png',
+    'cow.png',
+    'pig.png',
+    'panda.png',
+    'sheep.png'
 ];
 
+const thumbnailFiles = ['café.png'];
+
 const userSelection = {
-  username: '',
-  avatar: null
+    username: '',
+    avatar: null
 };
 
 const preloadAssets = () => {
-  const preload = document.getElementById('preload');
-  
-  avatarFiles.forEach(file => {
-    const img = new Image();
-    img.src = `/assets/avatars/${file}`;
-    preload.appendChild(img);
-  });
+    const preload = document.getElementById('preload');
+
+    avatarFiles.forEach(file => {
+        const img = new Image();
+        img.src = `/assets/avatars/${file}`;
+        preload.appendChild(img);
+    });
+
+    thumbnailFiles.forEach(file => {
+        const img = new Image();
+        img.src = `/assets/thumbnails/${file}`;
+        preload.appendChild(img);
+    });
 };
 
 const generateRandomName = () => {
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  return adj + noun;
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return adj + noun;
 };
 
 const renderAvatarGrid = () => {
-  const grid = document.getElementById('avatar-grid');
-  grid.innerHTML = '';
-  
-  const avatarCount = 12;
-  for (let i = 0; i < avatarCount; i++) {
-    const option = document.createElement('div');
-    
-    if (i < avatarFiles.length) {
-      const avatarFile = avatarFiles[i];
-      option.className = 'avatar-option';
-      option.dataset.avatar = avatarFile;
-      option.innerHTML = `<img src="/assets/avatars/${avatarFile}" alt="Avatar ${i + 1}">`;
-      
-      option.addEventListener('click', () => {
-        document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
-        option.classList.add('selected');
-        selectedAvatar = avatarFile;
-        userSelection.avatar = selectedAvatar;
-        updateEnterButton();
-      });
-    } else {
-      option.className = 'avatar-option empty';
-      option.innerHTML = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    const grid = document.getElementById('avatar-grid');
+    grid.innerHTML = '';
+
+    const avatarCount = 12;
+    for (let i = 0; i < avatarCount; i++) {
+        const option = document.createElement('div');
+
+        if (i < avatarFiles.length) {
+            const avatarFile = avatarFiles[i];
+            option.className = 'avatar-option';
+            option.dataset.avatar = avatarFile;
+            option.innerHTML = `<img src="/assets/avatars/${avatarFile}" alt="Avatar ${i + 1}">`;
+
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.avatar-option').forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedAvatar = avatarFile;
+                userSelection.avatar = selectedAvatar;
+                updateEnterButton();
+            });
+        } else {
+            option.className = 'avatar-option empty';
+            option.innerHTML = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
         <line x1="8" y1="8" x2="92" y2="92" stroke="#9ca3af" stroke-width="7" stroke-linecap="round" />
       </svg>`;
+        }
+
+        grid.appendChild(option);
     }
-    
-    grid.appendChild(option);
-  }
 };
 
 const updateEnterButton = () => {
-  const enterBtn = document.getElementById('enter-btn');
-  const username = usernameInput.value.trim();
-  const isValidUsername = username.length >= 2 && username.length <= 16;
-  const hasAvatar = selectedAvatar !== null;
-  
-  enterBtn.disabled = !(isValidUsername && hasAvatar);
+    const enterBtn = document.getElementById('enter-btn');
+    const username = usernameInput.value.trim();
+    const isValidUsername = username.length >= 2 && username.length <= 16;
+    const hasAvatar = selectedAvatar !== null;
+
+    enterBtn.disabled = !(isValidUsername && hasAvatar);
 };
 
 const handleEnter = () => {
-  const username = usernameInput.value.trim();
-  if (username.length >= 2 && username.length <= 16 && selectedAvatar) {
-    userSelection.username = username;
-    userSelection.avatar = selectedAvatar;
-    
-    landing.classList.add('hidden');
-    workplaceSelector.classList.remove('hidden');
-  }
+    const username = usernameInput.value.trim();
+    if (username.length >= 2 && username.length <= 16 && selectedAvatar) {
+        userSelection.username = username;
+        userSelection.avatar = selectedAvatar;
+
+        landing.classList.add('hidden');
+        workplaceSelector.classList.remove('hidden');
+    }
 };
 
 usernameInput.addEventListener('input', () => {
-  userSelection.username = usernameInput.value.trim();
-  updateEnterButton();
+    userSelection.username = usernameInput.value.trim();
+    updateEnterButton();
 });
 
 usernameInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    const enterBtn = document.getElementById('enter-btn');
-    if (!enterBtn.disabled) {
-      handleEnter();
+    if (e.key === 'Enter') {
+        const enterBtn = document.getElementById('enter-btn');
+        if (!enterBtn.disabled) {
+            handleEnter();
+        }
     }
-  }
 });
 
 document.getElementById('random-name-btn').addEventListener('click', () => {
-  usernameInput.value = generateRandomName();
-  userSelection.username = usernameInput.value;
-  updateEnterButton();
+    usernameInput.value = generateRandomName();
+    userSelection.username = usernameInput.value;
+    updateEnterButton();
 });
 
 document.getElementById('enter-btn').addEventListener('click', handleEnter);
+
+document.getElementById('back-to-landing-btn').addEventListener('click', () => {
+    workplaceSelector.classList.add('hidden');
+    landing.classList.remove('hidden');
+});
 
 const getDisplayName = (roomName) => {
     const base = roomName.replace(/-[0-9]+$/, '');
@@ -165,7 +178,7 @@ const getPreviewStyle = (type) => {
         'study': '#3d3d5c'
     };
     const fallbackColor = fallbackColors[base] || '#e5e7eb';
-    
+
     if (base === 'cafe') {
         return `background-image: url(/assets/thumbnails/café.png)`;
     }

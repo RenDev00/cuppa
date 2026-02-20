@@ -223,6 +223,28 @@ body {
   padding: 32px;
 }
 
+.back-btn {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  padding: 8px 16px;
+  background: #e5e7eb;
+  color: #4b5563;
+  border: 3px solid #9ca3af;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Tiny5', cursive;
+  font-size: 18px;
+  letter-spacing: 1px;
+  transition: all 0.15s ease;
+}
+
+.back-btn:hover {
+  background: #d1d5db;
+  border-color: #6b7280;
+  transform: translateY(-1px);
+}
+
 #workplace-selector h2 {
   font-family: 'Jersey10', system-ui, sans-serif;
   font-size: 36px;
