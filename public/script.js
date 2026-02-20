@@ -84,8 +84,8 @@ socket.on('workplaceConfig', (config) => {
 
 joinBtn.addEventListener('click', () => {
     username = usernameInput.value.trim();
-    if (username.length < 3) {
-        alert('Username must be at least 3 characters');
+    if (username.length < 2) {
+        alert('Username must be at least 2 characters');
         return;
     }
     landing.classList.add('hidden');
