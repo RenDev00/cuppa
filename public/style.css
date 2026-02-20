@@ -221,6 +221,7 @@ body {
   justify-content: center;
   height: 100%;
   padding: 32px;
+  position: relative;
 }
 
 .back-btn {

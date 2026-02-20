@@ -51,18 +51,14 @@ const userSelection = {
 };
 
 const preloadAssets = () => {
-    const preload = document.getElementById('preload');
-
     avatarFiles.forEach(file => {
         const img = new Image();
         img.src = `/assets/avatars/${file}`;
-        preload.appendChild(img);
     });
 
     thumbnailFiles.forEach(file => {
         const img = new Image();
         img.src = `/assets/thumbnails/${file}`;
-        preload.appendChild(img);
     });
 };
 
@@ -202,7 +198,7 @@ const renderRooms = (rooms) => {
         card.dataset.type = type;
         card.innerHTML = `
             <div class="preview" style="${getPreviewStyle(type)}"></div>
-            <span>${getDisplayName(type)} (${userCount}/${maxUsers})${isFull ? ' - Full' : ''}</span>
+            <span>${escapeHtml(getDisplayName(type))} (${userCount}/${maxUsers})${isFull ? ' - Full' : ''}</span>
         `;
 
         if (!isFull) {
