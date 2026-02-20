@@ -24,16 +24,10 @@ const findAvailableRoom = (baseName) => {
     const workplaceType = baseName.replace(/-[0-9]+$/, '');
     const maxPerRoom = workplacesConfig[workplaceType]?.seats.length || 10;
 
-    if (!rooms.has(baseName)) {
-        return baseName;
-    }
+    if (!rooms.has(baseName)) return baseName;
 
     const room = rooms.get(baseName);
-    if (room.users.size < maxPerRoom) {
-        return baseName;
-    }
-
-    return null;
+    return room.users.size < maxPerRoom ? baseName : null;
 };
 
 const app = express();
@@ -167,7 +161,7 @@ io.on('connection', (socket) => {
             }
             io.to(roomName).emit('seatClaimed', { seatId, socketId: socket.id });
         } else {
-            log('WARN', 'Seat already occupied or invalid', { seatId });
+            log('WARN', 'Seat already occupied or invalid', { seatId, roomName });
         }
     });
 
