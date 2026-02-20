@@ -128,7 +128,8 @@ socket.on('roomState', (data) => {
         seatEl.dataset.seatId = seat.id;
 
         if (!seat.occupiedBy) {
-            seatEl.addEventListener('click', () => {
+            seatEl.addEventListener('click', (e) => {
+                e.stopPropagation();
                 socket.emit('claimSeat', { roomName: currentRoom, seatId: seat.id });
             });
         }
@@ -137,16 +138,13 @@ socket.on('roomState', (data) => {
     });
 
     data.users.forEach(user => {
-        const seat = data.seats.find(s => s.id === user.seatId);
+        const seat = data.seats.find(s => s.occupiedBy === user.id);
         if (seat) {
             const avatarEl = document.createElement('div');
             avatarEl.className = 'avatar';
             avatarEl.style.left = `${seat.x}px`;
             avatarEl.style.top = `${seat.y}px`;
-            avatarEl.innerHTML = `
-        <img src="/assets/avatars/${user.avatarId || '01'}.png" alt="${escapeHtml(user.username)}">
-        <div class="label">${escapeHtml(user.username)}</div>
-      `;
+            avatarEl.textContent = escapeHtml(user.username);
             avatarsContainer.appendChild(avatarEl);
         }
     });
@@ -166,12 +164,25 @@ socket.on('userLeft', (data) => {
     }
 });
 
-socket.on('seatUpdated', (data) => {
-    console.log('Seat updated:', data);
+socket.on('seatClaimed', (data) => {
+    console.log('Seat claimed:', data);
+    if (currentRoom) {
+        socket.emit('getRoomState', { roomName: currentRoom });
+    }
+});
+
+socket.on('seatFreed', (data) => {
+    console.log('Seat freed:', data);
+    if (currentRoom) {
+        socket.emit('getRoomState', { roomName: currentRoom });
+    }
 });
 
 socket.on('userStatusUpdated', (data) => {
     console.log('User status updated:', data);
+    if (currentRoom) {
+        socket.emit('getRoomState', { roomName: currentRoom });
+    }
 });
 
 socket.on('roomFull', (data) => {
