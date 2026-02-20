@@ -155,6 +155,23 @@ const escapeHtml = (str) => {
     return div.innerHTML;
 };
 
+const getPreviewStyle = (type) => {
+    const base = type.replace(/-[0-9]+$/, '');
+    const fallbackColors = {
+        'cafe': '#4a3728',
+        'library': '#2d4a3e',
+        'park': '#3d5c3d',
+        'bar': '#4a2d3d',
+        'study': '#3d3d5c'
+    };
+    const fallbackColor = fallbackColors[base] || '#e5e7eb';
+    
+    if (base === 'cafe') {
+        return `background-image: url(/assets/thumbnails/café.png)`;
+    }
+    return `background-color: ${fallbackColor}`;
+};
+
 const renderRooms = (rooms) => {
     if (workplaceTypes.length === 0) return;
 
@@ -171,7 +188,7 @@ const renderRooms = (rooms) => {
         card.className = 'workplace-card' + (isFull ? ' full' : '');
         card.dataset.type = type;
         card.innerHTML = `
-            <div class="preview ${type}-preview"></div>
+            <div class="preview" style="${getPreviewStyle(type)}"></div>
             <span>${getDisplayName(type)} (${userCount}/${maxUsers})${isFull ? ' - Full' : ''}</span>
         `;
 
