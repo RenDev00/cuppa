@@ -115,8 +115,17 @@ const handleEnter = () => {
         userSelection.username = username;
         userSelection.avatar = selectedAvatar;
 
-        landing.classList.add('hidden');
-        workplaceSelector.classList.remove('hidden');
+        landing.style.opacity = '0';
+        
+        setTimeout(() => {
+            landing.classList.add('hidden');
+            landing.style.opacity = '';
+            workplaceSelector.classList.remove('hidden');
+            workplaceSelector.style.opacity = '0';
+            setTimeout(() => {
+                workplaceSelector.style.opacity = '1';
+            }, 50);
+        }, 300);
     }
 };
 
@@ -143,8 +152,17 @@ document.getElementById('random-name-btn').addEventListener('click', () => {
 document.getElementById('enter-btn').addEventListener('click', handleEnter);
 
 document.getElementById('back-to-landing-btn').addEventListener('click', () => {
-    workplaceSelector.classList.add('hidden');
-    landing.classList.remove('hidden');
+    workplaceSelector.style.opacity = '0';
+    
+    setTimeout(() => {
+        workplaceSelector.classList.add('hidden');
+        workplaceSelector.style.opacity = '';
+        landing.classList.remove('hidden');
+        landing.style.opacity = '0';
+        setTimeout(() => {
+            landing.style.opacity = '1';
+        }, 50);
+    }, 300);
 });
 
 const getDisplayName = (roomName) => {
@@ -247,10 +265,20 @@ leaveBtn.addEventListener('click', () => {
         socket.emit('leaveRoom', { roomName: currentRoom });
     }
     currentRoom = null;
-    room.classList.add('hidden');
-    workplaceSelector.classList.remove('hidden');
-    seatsContainer.innerHTML = '';
-    avatarsContainer.innerHTML = '';
+    
+    room.style.opacity = '0';
+    
+    setTimeout(() => {
+        room.classList.add('hidden');
+        room.style.opacity = '';
+        workplaceSelector.classList.remove('hidden');
+        workplaceSelector.style.opacity = '0';
+        setTimeout(() => {
+            workplaceSelector.style.opacity = '1';
+        }, 50);
+        seatsContainer.innerHTML = '';
+        avatarsContainer.innerHTML = '';
+    }, 300);
 });
 
 document.querySelectorAll('.status-btn').forEach(btn => {
