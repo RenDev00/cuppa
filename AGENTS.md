@@ -20,9 +20,11 @@ npm run dev
 
 # Run backend server (Express + Socket.io on port 3000)
 npm run dev:server
+
+# Run both in separate terminals for full testing
 ```
 
-### Build
+### Build & Preview
 ```bash
 # Build frontend for production
 npm run build
@@ -31,12 +33,14 @@ npm run build
 npm run preview
 ```
 
-### Running Tests
-**No test framework is currently configured.** To add tests, consider:
+### Testing
+**No test framework is currently configured.** To add tests, consider Vitest:
 ```bash
-# Example (not configured):
+npm install -D vitest
+# Add to package.json: "test": "vitest"
 npm test              # Run all tests
-npm test -- --run     # Run tests once (Vitest)
+npm test -- --run     # Run tests once (CI mode)
+npm test -- file.js   # Run specific file
 ```
 
 ---
@@ -68,12 +72,18 @@ npm test -- --run     # Run tests once (Vitest)
 ```javascript
 // Server imports
 import express from 'express';
-import { rooms, workplacesConfig } from './state.js';
+import { rooms, workplacesConfig, claimSeat } from './state.js';
 
 // Named exports preferred
 export const findAvailableRoom = (baseName) => { ... };
 export default app;
 ```
+
+### Formatting
+- Use 4 spaces for indentation
+- Maximum line length: 100 characters
+- Add trailing commas in multiline objects/arrays
+- Use template literals instead of string concatenation
 
 ### Error Handling
 - Use try/catch for async operations
@@ -81,12 +91,23 @@ export default app;
 - Never expose raw error messages to clients; log server-side only
 - Validate all user inputs on server before processing
 
-### Server-Side Validation Pattern
+---
+
+## Validation Patterns
+
+### Server-Side Validation (Required)
 ```javascript
 socket.on('claimSeat', (data) => {
     const { roomName, seatId } = data;
-    const room = rooms.get(roomName);
     
+    // Type validation
+    if (typeof seatId !== 'number' || !Number.isInteger(seatId)) {
+        log('WARN', 'Invalid seatId type', { seatId: typeof seatId });
+        return;
+    }
+    
+    // Existence validation
+    const room = rooms.get(roomName);
     if (!room) {
         log('WARN', 'Room not found', { roomName });
         return;
@@ -101,11 +122,29 @@ socket.on('claimSeat', (data) => {
 });
 ```
 
-### Client-Side Patterns
+### Input Length Validation
+```javascript
+const username = (userData.username || 'Anonymous').slice(0, 50);
+```
+
+### Rate Limiting
+Apply per-event rate limits using `checkRateLimit()`:
+```javascript
+if (!checkRateLimit(socket.id, 'claimSeat', 1)) {
+    log('WARN', 'Rate limit exceeded', { socketId: socket.id, event: 'claimSeat' });
+    return;
+}
+```
+
+---
+
+## Client-Side Patterns
+
 - Cache DOM elements at the top of the file
 - Use event delegation where appropriate
-- Sanitize user input before rendering (see `escapeHtml` function)
+- Sanitize user input before rendering (use `escapeHtml` utility)
 - Use `const` for DOM queries; avoid repeated queries
+- Handle socket events for state refresh
 
 ### Socket.io Conventions
 - Server emits to specific room: `io.to(roomName).emit(...)`
@@ -114,24 +153,43 @@ socket.on('claimSeat', (data) => {
 - Client listens: `socket.on('eventName', callback)`
 - Client emits: `socket.emit('eventName', data)`
 
-### State Management
-- Server: Use in-memory `Map` for rooms (`server/state.js`)
-- Client: Cache server state; update on socket events
-- Always use server as source of truth for room state
+---
 
-### Security
-- Validate all socket event payloads
+## State Management
+
+### Server State (server/state.js)
+- Use in-memory `Map` for rooms (`rooms`)
+- Helper functions for atomic operations: `claimSeat`, `userJoined`, `userLeft`, `updateStatus`
+- Return structured results: `{ success: true, user }` or `{ success: false, reason: 'room_full' }`
+
+### Client State
+- Cache server state; update on socket events
+- Always use server as source of truth for room state
+- Refresh state on: `userJoined`, `userLeft`, `seatClaimed`, `seatFreed`, `userStatusUpdated`
+
+---
+
+## Security
+
+- Validate all socket event payloads (type, length, existence)
 - Check user membership before allowing actions
 - Escape HTML to prevent XSS (use `escapeHtml` utility)
 - No secrets in client-side code
+- Rate limit sensitive operations (claimSeat, updateStatus)
 
-### CSS Guidelines
+---
+
+## CSS Guidelines
+
 - Use CSS custom properties for theming
 - Keep selectors simple and specific
 - Group related styles
 - Use semantic class names
 
-### File Organization
+---
+
+## File Organization
+
 ```
 /cuppa
 ├── public/
@@ -140,34 +198,55 @@ socket.on('claimSeat', (data) => {
 │   └── style.css
 ├── server/
 │   ├── index.js       # Express + Socket.io server
-│   └── state.js      # In-memory state (rooms, config)
+│   └── state.js       # In-memory state (rooms, config)
 ├── package.json
-└── vite.config.js
+├── vite.config.js
+└── AGENTS.md         # This file
 ```
 
-### Common Patterns
+---
 
-#### Broadcasting Room Updates
+## Common Patterns
+
+### Atomic State Operations
 ```javascript
-const broadcastRoomsList = () => {
-    const roomList = Array.from(rooms.entries()).map(([name, room]) => ({
-        name,
-        userCount: room.users.size,
-        maxUsers: room.seats.length
-    }));
-    io.emit('roomsList', roomList);
+// claimSeat in state.js - atomic, prevents double-booking
+export const claimSeat = (room, socketId, seatId) => {
+  const seat = room.seats.find(s => s.id === seatId);
+  if (!seat) return { success: false };
+  if (seat.occupiedBy === socketId) return { success: true, freedSeatId: null };
+  if (seat.occupiedBy) return { success: false };
+  
+  let freedSeatId = null;
+  room.seats.forEach(s => {
+    if (s.occupiedBy === socketId) {
+      s.occupiedBy = null;
+      freedSeatId = s.id;
+    }
+  });
+  
+  seat.occupiedBy = socketId;
+  return { success: true, freedSeatId };
 };
 ```
 
-#### Handling Disconnections
+### Broadcasting Delta Updates
+```javascript
+// Minimal payloads only
+io.to(roomName).emit('seatClaimed', { seatId, socketId });
+io.to(roomName).emit('userJoined', { socketId, username, status });
+io.to(roomName).emit('userLeft', { socketId, seatFreed });
+```
+
+### Handling Disconnections
 ```javascript
 socket.on('disconnect', () => {
     log('INFO', 'Client disconnected', { socketId: socket.id });
-    // Clean up user from all rooms
     rooms.forEach((room, roomName) => {
         if (room.users.has(socket.id)) {
-            room.users.delete(socket.id);
-            io.to(roomName).emit('userLeft', { socketId: socket.id });
+            const { freedSeatId, isEmpty } = userLeft(room, socket.id);
+            io.to(roomName).emit('userLeft', { socketId: socket.id, seatFreed });
+            if (isEmpty) rooms.delete(roomName);
         }
     });
     broadcastRoomsList();
@@ -181,7 +260,8 @@ socket.on('disconnect', () => {
 - Check browser console for client errors
 - Check terminal for server logs (timestamps + log level)
 - Use `log('INFO', 'message', { data })` for structured logging
-- Socket.io events can be inspected in browser DevTools > Network > WS
+- Socket.io events: browser DevTools > Network > WS
+- Test with multiple browser tabs for real-time updates
 
 ---
 
@@ -196,7 +276,7 @@ socket.on('disconnect', () => {
 
 ## Known Constraints
 
-- No dynamic room creation beyond initial rooms defined in `workplacesConfig`
-- Single workplace type per room (no sub-rooms)
+- No test framework configured yet
 - In-memory state is lost on server restart
 - No authentication/authorization currently implemented
+- Single workplace type per room (no sub-rooms)
