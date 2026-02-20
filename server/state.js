@@ -87,7 +87,8 @@ export const claimSeat = (room, socketId, seatId) => {
 };
 
 export const userJoined = (room, socketId, userData) => {
-  const user = { username: userData.username || 'Anonymous', status: userData.status || 'working' };
+  const username = (userData.username || 'Anonymous').slice(0, 50);
+  const user = { username, status: userData.status || 'working' };
   room.users.set(socketId, user);
   return user;
 };

@@ -50,20 +50,20 @@ const eventRateLimitStore = new Map();
 const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
     const now = Date.now();
     const key = `${socketId}:${eventName}`;
-    
+
     if (!eventRateLimitStore.has(key)) {
         eventRateLimitStore.set(key, { count: 0, resetTime: now + 1000 });
     }
-    
+
     const record = eventRateLimitStore.get(key);
-    
+
     if (now > record.resetTime) {
         record.count = 0;
         record.resetTime = now + 1000;
     }
-    
+
     record.count++;
-    
+
     if (record.count > maxPerSecond) {
         return false;
     }
@@ -139,7 +139,7 @@ io.on('connection', (socket) => {
             log('WARN', 'Rate limit exceeded', { socketId: socket.id, event: 'claimSeat' });
             return;
         }
-        
+
         const { roomName, seatId } = data;
         log('INFO', 'claimSeat received', { socketId: socket.id, roomName, seatId });
 
@@ -175,16 +175,19 @@ io.on('connection', (socket) => {
         if (!checkRateLimit(socket.id, 'getRoomState', 10)) {
             return;
         }
-        
+
         const { roomName } = data;
         const room = rooms.get(roomName);
-        if (room && room.users.has(socket.id)) {
-            socket.emit('roomState', {
-                roomName,
-                users: Array.from(room.users.entries()).map(([id, user]) => ({ id, ...user })),
-                seats: room.seats
-            });
+        if (!room || !room.users.has(socket.id)) {
+            log('WARN', 'getRoomState failed - user not in room', { socketId: socket.id, roomName });
+            return;
         }
+
+        socket.emit('roomState', {
+            roomName,
+            users: Array.from(room.users.entries()).map(([id, user]) => ({ id, ...user })),
+            seats: room.seats
+        });
     });
 
     socket.on('leaveRoom', (data) => {
@@ -199,19 +202,18 @@ io.on('connection', (socket) => {
         const { freedSeatId, isEmpty } = userLeft(room, socket.id);
 
         socket.leave(roomName);
-        
+
         const payload = { socketId: socket.id };
         if (freedSeatId !== null) {
             payload.seatFreed = freedSeatId;
         }
         io.to(roomName).emit('userLeft', payload);
 
+        log('INFO', 'User left room', { socketId: socket.id, roomName });
         if (isEmpty) {
             rooms.delete(roomName);
             log('INFO', 'Room deleted (empty)', { roomName });
         }
-
-        log('INFO', 'User left room', { socketId: socket.id, roomName });
         broadcastRoomsList();
     });
 
@@ -219,7 +221,7 @@ io.on('connection', (socket) => {
         if (!checkRateLimit(socket.id, 'updateStatus', 1)) {
             return;
         }
-        
+
         const { roomName, status } = data;
 
         const room = rooms.get(roomName);
@@ -247,7 +249,7 @@ io.on('connection', (socket) => {
         rooms.forEach((room, roomName) => {
             if (room.users.has(socket.id)) {
                 const { freedSeatId, isEmpty } = userLeft(room, socket.id);
-                
+
                 const payload = { socketId: socket.id };
                 if (freedSeatId !== null) {
                     payload.seatFreed = freedSeatId;
