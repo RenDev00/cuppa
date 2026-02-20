@@ -12,23 +12,25 @@
   <div id="app">
     <div id="landing">
       <div class="landing-container">
-        <h1 class="title">Cuppa</h1>
-        <p class="subtitle">Choose your character</p>
+        <div class="header">
+          <h1 class="title">Cuppa(β)</h1>
+          <p class="subtitle">a cozy online workplace</p>
+        </div>
         
         <div class="username-section">
           <div class="username-row">
-            <input type="text" id="username" placeholder="Username" maxlength="16">
+            <div class="name-bar">
+              <input type="text" id="username" placeholder="Your Name" maxlength="16">
+            </div>
             <button id="random-name-btn" class="btn-secondary">Random</button>
           </div>
-          <span id="username-hint" class="hint">2-16 characters</span>
         </div>
         
         <div class="avatar-section">
-          <p class="section-label">Select avatar</p>
           <div id="avatar-grid" class="avatar-grid"></div>
         </div>
         
-        <button id="enter-btn" class="btn-primary" disabled>Enter the world</button>
+        <button id="enter-btn" class="enter-btn" disabled>Enter</button>
       </div>
     </div>
     

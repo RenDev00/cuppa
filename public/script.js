@@ -79,7 +79,7 @@ const renderAvatarGrid = () => {
   const grid = document.getElementById('avatar-grid');
   grid.innerHTML = '';
   
-  const avatarCount = 10;
+  const avatarCount = 12;
   for (let i = 0; i < avatarCount; i++) {
     const option = document.createElement('div');
     
@@ -97,8 +97,10 @@ const renderAvatarGrid = () => {
         updateEnterButton();
       });
     } else {
-      option.className = 'avatar-option tbd';
-      option.innerHTML = '<span class="tbd-text">TBD</span>';
+      option.className = 'avatar-option empty';
+      option.innerHTML = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <line x1="8" y1="8" x2="92" y2="92" stroke="#9ca3af" stroke-width="7" stroke-linecap="round" />
+      </svg>`;
     }
     
     grid.appendChild(option);
