@@ -36,6 +36,9 @@ const broadcastRoomsList = () => {
 const app = express();
 const httpServer = createServer(app);
 const isProduction = process.env.NODE_ENV === 'production';
+const staticPath = isProduction
+    ? join(__dirname, '../dist')
+    : join(__dirname, '../public');
 const io = new Server(httpServer, {
     cors: {
         origin: isProduction ? false : ['http://localhost:5173', 'http://localhost:3000'],
@@ -84,7 +87,7 @@ const cleanupRateLimiter = () => {
 
 setInterval(cleanupRateLimiter, 30000);
 
-app.use(express.static(join(__dirname, '../public')));
+app.use(express.static(staticPath));
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: Date.now() });

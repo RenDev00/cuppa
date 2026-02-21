@@ -23,14 +23,6 @@
 }
 ```
 
-### Build the frontend:
-
-```bash
-npm run build
-```
-
-This creates a `dist/` folder with static files.
-
 ---
 
 ## Step 2: Set Up VPS
@@ -59,24 +51,15 @@ sudo apt install nginx
 
 ## Step 3: Transfer Files to VPS
 
-### Option A: Using git (recommended)
-
 On your VPS:
 
 ```bash
 cd /var/www
-git clone https://github.com/yourusername/cuppa.git
+git clone https://github.com/RenDev00/cuppa.git
 cd cuppa
-npm install --production
-```
-
-### Option B: Using scp
-
-```bash
-# From your local machine
-scp -r ./dist user@your-vps-ip:/var/www/cuppa/
-scp -r ./server user@your-vps-ip:/var/www/cuppa/
-scp package.json user@your-vps-ip:/var/www/cuppa/
+npm install
+npm run build
+npm prune --production
 ```
 
 ---
@@ -94,18 +77,9 @@ sudo nano /etc/nginx/sites-available/cuppa
 ```nginx
 server {
     listen 80;
-    server_name YOUR_VPS_IP;
+    server_name YOUR_VPS_IP;   # or your domain later
 
-    root /var/www/cuppa/dist;
-    index index.html;
-
-    # Frontend static files
     location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Backend API + Socket.io
-    location /socket.io/ {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
