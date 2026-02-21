@@ -12,6 +12,18 @@
     font-style: normal;
 }
 
+@keyframes seat-bob {
+
+    0%,
+    100% {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    50% {
+        transform: translateX(-50%) translateY(-4px);
+    }
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -389,7 +401,6 @@ body {
     position: absolute;
     bottom: 0;
     left: 50%;
-    transform: translateX(-50%);
     width: 0;
     height: 0;
     border-left: 10px solid transparent;
@@ -397,6 +408,7 @@ body {
     border-top: 16px solid rgba(255, 255, 255, 0.8);
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 1)) drop-shadow(0 0 1px rgba(0, 0, 0, 1));
     transition: border-top-color 0.2s;
+    animation: seat-bob 1.5s ease-in-out infinite;
 }
 
 .seat:hover::after {
