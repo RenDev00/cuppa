@@ -101,10 +101,9 @@ export const userJoined = (room, socketId, userData, maxUsers) => {
     const username = (userData.username || 'Anonymous').slice(0, 50);
     const user = {
         username,
-        status: userData.status || 'working',
+        status: 'Working',
         avatar: userData.avatar || null,
-        statusEmoji: userData.statusEmoji || '😊',
-        customStatus: userData.customStatus || '',
+        statusEmoji: '💻',
         seatTime: null
     };
     room.users.set(socketId, user);
@@ -132,26 +131,8 @@ export const updateStatus = (room, socketId, status, emoji) => {
     const user = room.users.get(socketId);
     if (!user) return false;
 
-    user.status = status;
-    if (emoji) {
-        user.statusEmoji = emoji;
-    }
-    return true;
-};
-
-export const updateStatusEmoji = (room, socketId, emoji) => {
-    const user = room.users.get(socketId);
-    if (!user) return false;
-
-    user.statusEmoji = emoji;
-    return true;
-};
-
-export const updateCustomStatus = (room, socketId, customStatus) => {
-    const user = room.users.get(socketId);
-    if (!user) return false;
-
-    user.customStatus = customStatus.slice(0, 100);
+    user.status = status.slice(0, 20);
+    user.statusEmoji = emoji || '😊';
     return true;
 };
 

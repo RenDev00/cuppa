@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { rooms, workplacesConfig, claimSeat, userJoined, userLeft, updateStatus, updateStatusEmoji, updateCustomStatus, createRoom } from './state.js';
+import { rooms, workplacesConfig, claimSeat, userJoined, userLeft, updateStatus, createRoom } from './state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -97,7 +97,7 @@ io.on('connection', (socket) => {
     })));
 
     socket.on('joinWorkplace', (data) => {
-        const { type, username, avatar, statusEmoji } = data;
+        const { type, username, avatar } = data;
         const baseRoomName = type || 'cafe';
 
         if (!workplacesConfig[baseRoomName]) {
@@ -125,9 +125,7 @@ io.on('connection', (socket) => {
         const sanitizedUsername = sanitizeUsername(username);
         const result = userJoined(room, socket.id, {
             username: sanitizedUsername,
-            status: 'working',
             avatar: avatar,
-            statusEmoji: statusEmoji || '😊'
         }, maxUsers);
 
         if (!result.success) {
@@ -156,7 +154,6 @@ io.on('connection', (socket) => {
 
     socket.on('claimSeat', (data) => {
         if (!checkRateLimit(socket.id, 'claimSeat', 1)) {
-            log('WARN', 'Rate limit exceeded', { socketId: socket.id, event: 'claimSeat' });
             return;
         }
 
@@ -255,6 +252,16 @@ io.on('connection', (socket) => {
 
         const { roomName, status, emoji } = data;
 
+        if (typeof status !== 'string' || status.length > 20) {
+            log('WARN', 'Invalid status', { socketId: socket.id, status });
+            return;
+        }
+        if (typeof emoji !== 'string' || emoji.length > 10) {
+            log('WARN', 'Invalid emoji', { socketId: socket.id, emoji });
+            return;
+        }
+
+
         const room = rooms.get(roomName);
         if (!room || !room.users.has(socket.id)) {
             log('WARN', 'User not in room', { socketId: socket.id, roomName });
@@ -265,56 +272,6 @@ io.on('connection', (socket) => {
         if (success) {
             log('INFO', 'User status updated', { socketId: socket.id, roomName, status, emoji });
             io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status, emoji });
-        }
-    });
-
-    socket.on('updateStatusEmoji', (data) => {
-        if (!checkRateLimit(socket.id, 'updateStatusEmoji', 1)) {
-            return;
-        }
-
-        const { roomName, emoji } = data;
-
-        if (typeof emoji !== 'string' || emoji.length > 10) {
-            log('WARN', 'Invalid emoji', { socketId: socket.id, emoji });
-            return;
-        }
-
-        const room = rooms.get(roomName);
-        if (!room || !room.users.has(socket.id)) {
-            log('WARN', 'User not in room', { socketId: socket.id, roomName });
-            return;
-        }
-
-        const success = updateStatusEmoji(room, socket.id, emoji);
-        if (success) {
-            log('INFO', 'User status emoji updated', { socketId: socket.id, roomName, emoji });
-            io.to(roomName).emit('userStatusEmojiUpdated', { socketId: socket.id, emoji });
-        }
-    });
-
-    socket.on('updateCustomStatus', (data) => {
-        if (!checkRateLimit(socket.id, 'updateCustomStatus', 1)) {
-            return;
-        }
-
-        const { roomName, customStatus } = data;
-
-        if (typeof customStatus !== 'string' || customStatus.length > 100) {
-            log('WARN', 'Invalid custom status', { socketId: socket.id, customStatus });
-            return;
-        }
-
-        const room = rooms.get(roomName);
-        if (!room || !room.users.has(socket.id)) {
-            log('WARN', 'User not in room', { socketId: socket.id, roomName });
-            return;
-        }
-
-        const success = updateCustomStatus(room, socket.id, customStatus);
-        if (success) {
-            log('INFO', 'User custom status updated', { socketId: socket.id, roomName, customStatus });
-            io.to(roomName).emit('userCustomStatusUpdated', { socketId: socket.id, customStatus });
         }
     });
 

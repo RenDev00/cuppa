@@ -12,6 +12,9 @@ const roomNameEl = document.getElementById('room-name');
 const userCountEl = document.getElementById('user-count');
 const seatsContainer = document.getElementById('seats-container');
 const avatarsContainer = document.getElementById('avatars-container');
+const emojiInput = document.getElementById('emoji-input');
+const customStatusInput = document.getElementById('custom-status-input');
+const updateStatusBtn = document.getElementById('update-status-btn');
 
 let currentRoom = null;
 let selectedAvatar = null;
@@ -50,14 +53,6 @@ const thumbnailFiles = ['café.png'];
 const userSelection = {
     username: '',
     avatar: null,
-    statusEmoji: '😊'
-};
-
-const statusPresets = {
-    working: { text: 'Working', emoji: '💻' },
-    break: { text: 'On Break', emoji: '☕' },
-    meeting: { text: 'In Meeting', emoji: '📅' },
-    available: { text: 'Available', emoji: '✅' }
 };
 
 let timeUpdateInterval = null;
@@ -145,7 +140,7 @@ const handleEnter = () => {
         userSelection.avatar = selectedAvatar;
 
         landing.style.opacity = '0';
-        
+
         setTimeout(() => {
             landing.classList.add('hidden');
             landing.style.opacity = '';
@@ -185,7 +180,7 @@ document.getElementById('back-to-landing-btn').addEventListener('click', () => {
     if (isTransitioning) return;
     isTransitioning = true;
     workplaceSelector.style.opacity = '0';
-    
+
     setTimeout(() => {
         workplaceSelector.classList.add('hidden');
         workplaceSelector.style.opacity = '';
@@ -257,16 +252,16 @@ const renderRooms = (rooms) => {
                 if (isTransitioning) return;
                 isTransitioning = true;
                 currentRoom = type;
-                
+
                 workplaceSelector.style.opacity = '0';
-                
+
                 setTimeout(() => {
                     workplaceSelector.classList.add('hidden');
                     workplaceSelector.style.opacity = '';
-                    
+
                     room.classList.remove('hidden');
                     room.style.opacity = '0';
-                    const bgUrl = workplaceBgs[type] || `/assets/bgs/${type}.png`;
+                    const bgUrl = workplaceBgs[type];
                     const roomContent = document.getElementById('room-content');
                     if (roomContent) {
                         roomContent.style.backgroundImage = `url(${bgUrl})`;
@@ -277,22 +272,20 @@ const renderRooms = (rooms) => {
                     const workingBtn = document.querySelector('.status-btn[data-status="working"]');
                     if (workingBtn) {
                         workingBtn.classList.add('active');
-                        pendingStatus = 'working';
-                        pendingEmoji = '💻';
                         emojiInput.value = '💻';
                         customStatusInput.value = 'Working';
                     }
+
 
                     setTimeout(() => {
                         room.style.opacity = '1';
                         isTransitioning = false;
                     }, 50);
-                    
+
                     socket.emit('joinWorkplace', {
                         type,
                         username: userSelection.username,
-                        avatar: userSelection.avatar,
-                        statusEmoji: userSelection.statusEmoji
+                        avatar: userSelection.avatar
                     });
                 }, 300);
             });
@@ -358,17 +351,9 @@ leaveBtn.addEventListener('click', () => {
     }, 300);
 });
 
-const emojiInput = document.getElementById('emoji-input');
-const customStatusInput = document.getElementById('custom-status-input');
-
-let pendingStatus = null;
-let pendingEmoji = null;
-
 customStatusInput.addEventListener('input', (e) => {
     if (e.target.value.trim().length > 0) {
         document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
-        pendingStatus = null;
-        pendingEmoji = null;
     }
 });
 
@@ -376,44 +361,49 @@ document.querySelectorAll('.status-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-
-        pendingStatus = btn.dataset.status;
-        pendingEmoji = btn.dataset.emoji;
-
         emojiInput.value = btn.dataset.emoji;
-        customStatusInput.value = btn.textContent.trim().substring(2);
+        customStatusInput.value = btn.textContent.substring(2).trim();
     });
 });
 
-document.getElementById('update-status-btn').addEventListener('click', () => {
+updateStatusBtn.addEventListener('click', () => {
     if (!currentRoom) return;
 
     const emoji = emojiInput.value || '😊';
     const customStatus = customStatusInput.value;
 
-    if (pendingStatus && pendingEmoji) {
+    if (emoji && customStatus) {
         socket.emit('updateStatus', {
             roomName: currentRoom,
-            status: pendingStatus,
-            emoji: pendingEmoji
+            status: customStatus,
+            emoji: emoji
         });
     }
-
-    socket.emit('updateStatusEmoji', {
-        roomName: currentRoom,
-        emoji: emoji
-    });
-
-    if (customStatus) {
-        socket.emit('updateCustomStatus', {
-            roomName: currentRoom,
-            customStatus: customStatus
-        });
-    }
-
-    pendingStatus = null;
-    pendingEmoji = null;
 });
+
+const calculateSeatPosition = (seat, bgWidth, bgHeight, containerWidth, containerHeight) => {
+    const bgAspect = bgWidth / bgHeight;
+    const containerAspect = containerWidth / containerHeight;
+
+    let renderWidth, renderHeight, offsetX, offsetY;
+
+    if (containerAspect > bgAspect) {
+        renderHeight = containerHeight;
+        renderWidth = renderHeight * bgAspect;
+        offsetX = (containerWidth - renderWidth) / 2;
+        offsetY = 0;
+    } else {
+        renderWidth = containerWidth;
+        renderHeight = renderWidth / bgAspect;
+        offsetX = 0;
+        offsetY = (containerHeight - renderHeight) / 2;
+    }
+
+    const x = offsetX + seat.x * renderWidth;
+    const y = offsetY + seat.y * renderHeight;
+
+    return { x, y, renderWidth, renderHeight, offsetX, offsetY };
+};
 
 const renderAvatars = (data, bgWidth, bgHeight, containerWidth, containerHeight) => {
     avatarsContainer.innerHTML = '';
@@ -450,7 +440,7 @@ const renderAvatars = (data, bgWidth, bgHeight, containerWidth, containerHeight)
 
             const statusSpan = document.createElement('span');
             statusSpan.className = 'avatar-status';
-            statusSpan.textContent = user.customStatus || user.status || 'Working';
+            statusSpan.textContent = user.status || 'Working';
 
             labelBottom.appendChild(timeSpan);
             labelBottom.appendChild(statusSpan);
@@ -488,39 +478,16 @@ const stopTimeUpdates = () => {
     }
 };
 
-const calculateSeatPosition = (seat, bgWidth, bgHeight, containerWidth, containerHeight) => {
-    const bgAspect = bgWidth / bgHeight;
-    const containerAspect = containerWidth / containerHeight;
-    
-    let renderWidth, renderHeight, offsetX, offsetY;
-    
-    if (containerAspect > bgAspect) {
-        renderHeight = containerHeight;
-        renderWidth = renderHeight * bgAspect;
-        offsetX = (containerWidth - renderWidth) / 2;
-        offsetY = 0;
-    } else {
-        renderWidth = containerWidth;
-        renderHeight = renderWidth / bgAspect;
-        offsetX = 0;
-        offsetY = (containerHeight - renderHeight) / 2;
-    }
-    
-    const x = offsetX + seat.x * renderWidth;
-    const y = offsetY + seat.y * renderHeight;
-    
-    return { x, y, renderWidth, renderHeight, offsetX, offsetY };
-};
 
 let currentRoomData = null;
 let currentBgDimensions = null;
 
 const renderRoom = () => {
     if (!currentRoomData || !currentBgDimensions) return;
-    
+
     const roomContent = document.getElementById('room-content');
     if (!roomContent) return;
-    
+
     const containerWidth = roomContent.clientWidth;
     const containerHeight = roomContent.clientHeight;
     const { width: bgWidth, height: bgHeight } = currentBgDimensions;
@@ -553,10 +520,10 @@ socket.on('roomState', (data) => {
     currentRoom = data.roomName;
     currentRoomData = data;
     currentBgDimensions = workplaceDimensions[currentRoom] || { width: 960, height: 540 };
-    
+
     roomNameEl.textContent = getDisplayName(data.roomName);
     userCountEl.textContent = `${data.users.length} users`;
-    
+
     renderRoom();
     startTimeUpdates();
 });
@@ -584,20 +551,6 @@ socket.on('userLeft', (data) => {
 socket.on('seatClaimed', (data) => {
     console.log('Seat claimed:', data);
     if (currentRoom) {
-        if (data.socketId === socket.id && pendingStatus && pendingEmoji) {
-            socket.emit('updateStatus', {
-                roomName: currentRoom,
-                status: pendingStatus,
-                emoji: pendingEmoji
-            });
-            const customStatus = customStatusInput.value;
-            if (customStatus) {
-                socket.emit('updateCustomStatus', {
-                    roomName: currentRoom,
-                    customStatus: customStatus
-                });
-            }
-        }
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
@@ -614,9 +567,11 @@ socket.on('userStatusUpdated', (data) => {
 
     const avatarWrapper = document.querySelector(`.avatar-wrapper[data-user-id="${data.socketId}"]`);
     if (avatarWrapper) {
-        const statusSpan = avatarWrapper.querySelector('.avatar-status');
-        if (statusSpan) {
-            statusSpan.textContent = data.status || 'Working';
+        if (data.status !== undefined) {
+            const statusSpan = avatarWrapper.querySelector('.avatar-status');
+            if (statusSpan) {
+                statusSpan.textContent = data.status || 'Working';
+            }
         }
 
         if (data.emoji) {
@@ -629,38 +584,7 @@ socket.on('userStatusUpdated', (data) => {
     }
 
     if (data.socketId === socket.id && data.emoji) {
-        userSelection.statusEmoji = data.emoji;
         emojiInput.value = data.emoji;
-    }
-});
-
-socket.on('userStatusEmojiUpdated', (data) => {
-    console.log('User status emoji updated:', data);
-
-    const avatarWrapper = document.querySelector(`.avatar-wrapper[data-user-id="${data.socketId}"]`);
-    if (avatarWrapper) {
-        const labelTop = avatarWrapper.querySelector('.avatar-label-top');
-        if (labelTop) {
-            const username = labelTop.textContent.split(' ')[0];
-            labelTop.textContent = `${username} ${data.emoji}`;
-        }
-    }
-
-    if (data.socketId === socket.id) {
-        userSelection.statusEmoji = data.emoji;
-        emojiInput.value = data.emoji;
-    }
-});
-
-socket.on('userCustomStatusUpdated', (data) => {
-    console.log('User custom status updated:', data);
-
-    const avatarWrapper = document.querySelector(`.avatar-wrapper[data-user-id="${data.socketId}"]`);
-    if (avatarWrapper) {
-        const statusSpan = avatarWrapper.querySelector('.avatar-status');
-        if (statusSpan) {
-            statusSpan.textContent = data.customStatus || 'Working';
-        }
     }
 });
 
