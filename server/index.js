@@ -22,7 +22,7 @@ const sanitizeUsername = (username) => {
         .slice(0, 50);
 };
 
-const VALID_AVATARS = ['cat.png', 'dog.png', 'cow.png', 'pig.png', 'panda.png', 'sheep.png'];
+const VALID_AVATARS = ['cat.png', 'dog.png', 'cow.png', 'pig.png', 'panda.png', 'sheep.png', 'duck.png'];
 
 const broadcastRoomsList = () => {
     const roomList = Array.from(rooms.entries()).map(([name, room]) => ({

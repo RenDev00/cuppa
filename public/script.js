@@ -50,7 +50,8 @@ const avatarFiles = [
     'cow.png',
     'pig.png',
     'panda.png',
-    'sheep.png'
+    'sheep.png',
+    'duck.png'
 ];
 
 const thumbnailFiles = ['café.png'];
