@@ -1,6 +1,6 @@
 const socket = io();
 
-const TIME_UPDATE_INTERVAL = 60000;
+const TIME_UPDATE_INTERVAL = 30000;
 const EMOJI_GRID_WIDTH = 8;
 
 const landing = document.getElementById('landing');
