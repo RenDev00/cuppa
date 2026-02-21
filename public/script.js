@@ -620,10 +620,13 @@ socket.on('disconnect', () => {
 
 const renderEmojiGrid = (emojis) => {
     emojiGrid.innerHTML = '';
-    emojis.forEach(emoji => {
+    currentEmojiList = emojis;
+    selectedEmojiIndex = emojis.length > 0 ? 0 : -1;
+    emojis.forEach((emoji, index) => {
         const btn = document.createElement('button');
         btn.className = 'emoji-option';
         btn.textContent = emoji;
+        btn.dataset.index = index;
         btn.addEventListener('click', () => {
             emojiDisplay.textContent = emoji;
             document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
@@ -633,6 +636,7 @@ const renderEmojiGrid = (emojis) => {
         });
         emojiGrid.appendChild(btn);
     });
+    updateEmojiSelection();
 };
 
 const filterEmojis = (query) => {
@@ -650,18 +654,85 @@ const filterEmojis = (query) => {
 };
 
 let isPickerOpen = false;
+let selectedEmojiIndex = -1;
+let currentEmojiList = [];
+
+const updateEmojiSelection = () => {
+    const buttons = emojiGrid.querySelectorAll('.emoji-option');
+    buttons.forEach((btn, idx) => {
+        btn.classList.toggle('selected', idx === selectedEmojiIndex);
+    });
+    if (selectedEmojiIndex >= 0) {
+        buttons[selectedEmojiIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+};
 
 document.addEventListener('keydown', (e) => {
     if (!isPickerOpen) return;
-    if (e.target === emojiSearch) return;
     if (e.key === 'Escape') {
         emojiPicker.classList.add('hidden');
         isPickerOpen = false;
         return;
     }
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.target === emojiSearch) {
+            const buttons = emojiGrid.querySelectorAll('.emoji-option');
+            if (buttons.length > 0) {
+                buttons[selectedEmojiIndex]?.click();
+            }
+        } else if (selectedEmojiIndex >= 0 && currentEmojiList[selectedEmojiIndex]) {
+            const emoji = currentEmojiList[selectedEmojiIndex];
+            emojiDisplay.textContent = emoji;
+            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+            emojiPicker.classList.add('hidden');
+            emojiSearch.value = '';
+            isPickerOpen = false;
+        }
+        return;
+    }
+    if (e.target === emojiSearch) {
+        if (e.key === 'Backspace') {
+            emojiSearch.value = emojiSearch.value.slice(0, -1);
+            filterEmojis(emojiSearch.value);
+        }
+        return;
+    }
     if (e.key === 'Backspace') {
         emojiSearch.value = emojiSearch.value.slice(0, -1);
         filterEmojis(emojiSearch.value);
+        return;
+    }
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (selectedEmojiIndex >= 8) {
+            selectedEmojiIndex -= 8;
+            updateEmojiSelection();
+        }
+        return;
+    }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (selectedEmojiIndex + 8 < currentEmojiList.length) {
+            selectedEmojiIndex += 8;
+            updateEmojiSelection();
+        }
+        return;
+    }
+    if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (selectedEmojiIndex > 0) {
+            selectedEmojiIndex -= 1;
+            updateEmojiSelection();
+        }
+        return;
+    }
+    if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (selectedEmojiIndex < currentEmojiList.length - 1) {
+            selectedEmojiIndex += 1;
+            updateEmojiSelection();
+        }
         return;
     }
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
