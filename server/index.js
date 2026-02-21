@@ -22,6 +22,8 @@ const sanitizeUsername = (username) => {
         .slice(0, 50);
 };
 
+const VALID_AVATARS = ['cat.png', 'dog.png', 'cow.png', 'pig.png', 'panda.png', 'sheep.png'];
+
 const broadcastRoomsList = () => {
     const roomList = Array.from(rooms.entries()).map(([name, room]) => ({
         name,
@@ -31,21 +33,18 @@ const broadcastRoomsList = () => {
     io.emit('roomsList', roomList);
 };
 
-const findAvailableRoom = (baseName) => {
-    if (!rooms.has(baseName)) return baseName;
-    return baseName;
-};
-
 const app = express();
 const httpServer = createServer(app);
+const isProduction = process.env.NODE_ENV === 'production';
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:5173',
+        origin: isProduction ? false : ['http://localhost:5173', 'http://localhost:3000'],
         methods: ['GET', 'POST']
     }
 });
 
 const eventRateLimitStore = new Map();
+const socketRateLimitKeys = new Map();
 
 const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
     const now = Date.now();
@@ -53,6 +52,10 @@ const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
 
     if (!eventRateLimitStore.has(key)) {
         eventRateLimitStore.set(key, { count: 0, resetTime: now + 1000 });
+        if (!socketRateLimitKeys.has(socketId)) {
+            socketRateLimitKeys.set(socketId, new Set());
+        }
+        socketRateLimitKeys.get(socketId).add(key);
     }
 
     const record = eventRateLimitStore.get(key);
@@ -70,7 +73,16 @@ const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
     return true;
 };
 
-io.use((socket, next) => next());
+const cleanupRateLimiter = () => {
+    const now = Date.now();
+    for (const [key, record] of eventRateLimitStore.entries()) {
+        if (now > record.resetTime + 5000) {
+            eventRateLimitStore.delete(key);
+        }
+    }
+};
+
+setInterval(cleanupRateLimiter, 30000);
 
 app.use(express.static(join(__dirname, '../public')));
 
@@ -83,7 +95,12 @@ io.on('connection', (socket) => {
 
     socket.emit('workplaceTypes', Object.keys(workplacesConfig));
     socket.emit('workplaceConfig', Object.fromEntries(
-        Object.entries(workplacesConfig).map(([type, config]) => [type, config.seats.length])
+        Object.entries(workplacesConfig).map(([type, config]) => [type, {
+            seats: config.seats.length,
+            bg: config.bg,
+            bgWidth: config.bgWidth,
+            bgHeight: config.bgHeight
+        }])
     ));
     socket.emit('roomsList', Array.from(rooms.entries()).map(([name, room]) => ({
         name,
@@ -92,7 +109,7 @@ io.on('connection', (socket) => {
     })));
 
     socket.on('joinWorkplace', (data) => {
-        const { type, username } = data;
+        const { type, username, avatar } = data;
         const baseRoomName = type || 'cafe';
 
         if (!workplacesConfig[baseRoomName]) {
@@ -100,14 +117,8 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const roomName = findAvailableRoom(baseRoomName);
+        const roomName = baseRoomName;
         const maxUsers = workplacesConfig[baseRoomName]?.seats.length || 10;
-
-        if (!roomName) {
-            log('WARN', 'No available room', { baseRoomName });
-            socket.emit('roomFull', { type: baseRoomName });
-            return;
-        }
 
         log('INFO', 'User joining workplace', { socketId: socket.id, roomName, username });
 
@@ -118,7 +129,12 @@ io.on('connection', (socket) => {
         }
 
         const sanitizedUsername = sanitizeUsername(username);
-        const result = userJoined(room, socket.id, { username: sanitizedUsername, status: 'working' }, maxUsers);
+        const sanitizedAvatar = VALID_AVATARS.includes(avatar) ? avatar : 'cat.png';
+
+        const result = userJoined(room, socket.id, {
+            username: sanitizedUsername,
+            avatar: sanitizedAvatar,
+        }, maxUsers);
 
         if (!result.success) {
             log('WARN', 'Room full during join', { roomName, userCount: room.users.size, maxUsers });
@@ -133,14 +149,19 @@ io.on('connection', (socket) => {
             seats: room.seats
         });
 
-        socket.to(roomName).emit('userJoined', { socketId: socket.id, username: result.user.username, status: result.user.status });
+        socket.to(roomName).emit('userJoined', {
+            socketId: socket.id,
+            username: result.user.username,
+            status: result.user.status,
+            avatar: result.user.avatar,
+            statusEmoji: result.user.statusEmoji
+        });
 
         broadcastRoomsList();
     });
 
     socket.on('claimSeat', (data) => {
         if (!checkRateLimit(socket.id, 'claimSeat', 1)) {
-            log('WARN', 'Rate limit exceeded', { socketId: socket.id, event: 'claimSeat' });
             return;
         }
 
@@ -192,6 +213,12 @@ io.on('connection', (socket) => {
         }
 
         const { roomName } = data;
+
+        if (typeof roomName !== 'string' || roomName.length === 0 || roomName.length > 50) {
+            log('WARN', 'Invalid roomName', { roomName: typeof roomName });
+            return;
+        }
+
         const room = rooms.get(roomName);
         if (!room || !room.users.has(socket.id)) {
             log('WARN', 'getRoomState failed - user not in room', { socketId: socket.id, roomName });
@@ -207,6 +234,12 @@ io.on('connection', (socket) => {
 
     socket.on('leaveRoom', (data) => {
         const { roomName } = data;
+
+        if (typeof roomName !== 'string' || roomName.length === 0 || roomName.length > 50) {
+            log('WARN', 'Invalid roomName', { roomName: typeof roomName });
+            return;
+        }
+
         const room = rooms.get(roomName);
 
         if (!room || !room.users.has(socket.id)) {
@@ -237,7 +270,17 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const { roomName, status } = data;
+        const { roomName, status, emoji } = data;
+
+        if (typeof status !== 'string' || status.length > 20) {
+            log('WARN', 'Invalid status', { socketId: socket.id, status });
+            return;
+        }
+        if (typeof emoji !== 'string' || emoji.length > 10) {
+            log('WARN', 'Invalid emoji', { socketId: socket.id, emoji });
+            return;
+        }
+
 
         const room = rooms.get(roomName);
         if (!room || !room.users.has(socket.id)) {
@@ -245,20 +288,20 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const success = updateStatus(room, socket.id, status);
+        const success = updateStatus(room, socket.id, status, emoji);
         if (success) {
-            log('INFO', 'User status updated', { socketId: socket.id, roomName, status });
-            io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status });
+            log('INFO', 'User status updated', { socketId: socket.id, roomName, status, emoji });
+            io.to(roomName).emit('userStatusUpdated', { socketId: socket.id, status, emoji });
         }
     });
 
     socket.on('disconnect', () => {
         log('INFO', 'Client disconnected', { socketId: socket.id });
 
-        for (const key of eventRateLimitStore.keys()) {
-            if (key.startsWith(socket.id + ':')) {
-                eventRateLimitStore.delete(key);
-            }
+        const keys = socketRateLimitKeys.get(socket.id);
+        if (keys) {
+            keys.forEach(key => eventRateLimitStore.delete(key));
+            socketRateLimitKeys.delete(socket.id);
         }
 
         rooms.forEach((room, roomName) => {
@@ -283,6 +326,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

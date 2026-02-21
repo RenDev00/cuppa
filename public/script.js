@@ -1,6 +1,7 @@
 const socket = io();
 
-console.log('Socket.io test connection: Client connected');
+const TIME_UPDATE_INTERVAL = 60000;
+const EMOJI_GRID_WIDTH = 8;
 
 const landing = document.getElementById('landing');
 const workplaceSelector = document.getElementById('workplace-selector');
@@ -12,12 +13,21 @@ const roomNameEl = document.getElementById('room-name');
 const userCountEl = document.getElementById('user-count');
 const seatsContainer = document.getElementById('seats-container');
 const avatarsContainer = document.getElementById('avatars-container');
+const emojiPickerBtn = document.getElementById('emoji-picker-btn');
+const emojiDisplay = document.getElementById('emoji-display');
+const emojiPicker = document.getElementById('emoji-picker');
+const emojiSearch = document.getElementById('emoji-search');
+const emojiGrid = document.getElementById('emoji-grid');
+const customStatusInput = document.getElementById('custom-status-input');
+const updateStatusBtn = document.getElementById('update-status-btn');
 
 let currentRoom = null;
 let selectedAvatar = null;
 let cachedRooms = [];
 let workplaceTypes = [];
 let workplaceSeats = {};
+let workplaceBgs = {};
+let workplaceDimensions = {};
 let isTransitioning = false;
 
 const adjectives = [
@@ -47,7 +57,24 @@ const thumbnailFiles = ['café.png'];
 
 const userSelection = {
     username: '',
-    avatar: null
+    avatar: null,
+};
+
+let timeUpdateInterval = null;
+
+const formatDuration = (ms) => {
+    if (!ms || ms <= 0) return '0m';
+    const hours = Math.floor(ms / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+};
+
+const getElapsedTime = (seatTime) => {
+    if (!seatTime) return '0m';
+    return formatDuration(Date.now() - seatTime);
 };
 
 const preloadAssets = () => {
@@ -92,8 +119,8 @@ const renderAvatarGrid = () => {
         } else {
             option.className = 'avatar-option empty';
             option.innerHTML = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <line x1="8" y1="8" x2="92" y2="92" stroke="#9ca3af" stroke-width="7" stroke-linecap="round" />
-      </svg>`;
+                <line x1="8" y1="8" x2="92" y2="92" stroke="#9ca3af" stroke-width="7" stroke-linecap="round" />
+            </svg>`;
         }
 
         grid.appendChild(option);
@@ -118,7 +145,7 @@ const handleEnter = () => {
         userSelection.avatar = selectedAvatar;
 
         landing.style.opacity = '0';
-        
+
         setTimeout(() => {
             landing.classList.add('hidden');
             landing.style.opacity = '';
@@ -158,7 +185,7 @@ document.getElementById('back-to-landing-btn').addEventListener('click', () => {
     if (isTransitioning) return;
     isTransitioning = true;
     workplaceSelector.style.opacity = '0';
-    
+
     setTimeout(() => {
         workplaceSelector.classList.add('hidden');
         workplaceSelector.style.opacity = '';
@@ -230,24 +257,41 @@ const renderRooms = (rooms) => {
                 if (isTransitioning) return;
                 isTransitioning = true;
                 currentRoom = type;
-                
+
                 workplaceSelector.style.opacity = '0';
-                
+
                 setTimeout(() => {
                     workplaceSelector.classList.add('hidden');
                     workplaceSelector.style.opacity = '';
-                    
+
                     room.classList.remove('hidden');
                     room.style.opacity = '0';
-                    room.style.backgroundImage = `url(/assets/bgs/${type}.png)`;
+                    const bgUrl = workplaceBgs[type];
+                    const roomContent = document.getElementById('room-content');
+                    if (roomContent) {
+                        roomContent.style.backgroundImage = `url(${bgUrl})`;
+                    }
                     roomNameEl.textContent = getDisplayName(type);
-                    
+
+                    document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+                    const workingBtn = document.querySelector('.status-btn[data-status="working"]');
+                    if (workingBtn) {
+                        workingBtn.classList.add('active');
+                        emojiDisplay.textContent = '💻';
+                        customStatusInput.value = 'Working';
+                    }
+
+
                     setTimeout(() => {
                         room.style.opacity = '1';
                         isTransitioning = false;
                     }, 50);
-                    
-                    socket.emit('joinWorkplace', { type, username: userSelection.username, avatar: userSelection.avatar });
+
+                    socket.emit('joinWorkplace', {
+                        type,
+                        username: userSelection.username,
+                        avatar: userSelection.avatar
+                    });
                 }, 300);
             });
         }
@@ -261,22 +305,41 @@ socket.on('workplaceTypes', (types) => {
     renderRooms(cachedRooms);
 });
 
+const preloadBackgrounds = () => {
+    Object.values(workplaceBgs).forEach(bgUrl => {
+        if (bgUrl) {
+            const img = new Image();
+            img.src = bgUrl;
+        }
+    });
+};
+
 socket.on('workplaceConfig', (config) => {
-    workplaceSeats = config;
+    workplaceSeats = {};
+    workplaceBgs = {};
+    workplaceDimensions = {};
+    for (const [type, data] of Object.entries(config)) {
+        workplaceSeats[type] = data.seats;
+        workplaceBgs[type] = data.bg;
+        workplaceDimensions[type] = { width: data.bgWidth, height: data.bgHeight };
+    }
+    preloadBackgrounds();
     renderRooms(cachedRooms);
 });
 
 leaveBtn.addEventListener('click', () => {
     if (isTransitioning) return;
     isTransitioning = true;
-    
+
+    stopTimeUpdates();
+
     if (currentRoom) {
         socket.emit('leaveRoom', { roomName: currentRoom });
     }
     currentRoom = null;
-    
+
     room.style.opacity = '0';
-    
+
     setTimeout(() => {
         room.classList.add('hidden');
         room.style.opacity = '';
@@ -288,31 +351,161 @@ leaveBtn.addEventListener('click', () => {
         }, 50);
         seatsContainer.innerHTML = '';
         avatarsContainer.innerHTML = '';
+        emojiDisplay.textContent = '';
+        customStatusInput.value = '';
     }, 300);
+});
+
+customStatusInput.addEventListener('input', (e) => {
+    if (e.target.value.trim().length > 0) {
+        document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+    }
 });
 
 document.querySelectorAll('.status-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        if (currentRoom) {
-            socket.emit('updateStatus', { roomName: currentRoom, status: btn.dataset.status });
-        }
+        emojiDisplay.textContent = btn.dataset.emoji;
+        customStatusInput.value = btn.textContent.substring(2).trim();
     });
 });
 
-socket.on('roomState', (data) => {
-    currentRoom = data.roomName;
-    roomNameEl.textContent = getDisplayName(data.roomName);
-    userCountEl.textContent = `${data.users.length} users`;
+updateStatusBtn.addEventListener('click', () => {
+    if (!currentRoom) return;
+
+    const emoji = emojiDisplay.textContent || '😊';
+    const customStatus = customStatusInput.value;
+
+    if (emoji && customStatus) {
+        socket.emit('updateStatus', {
+            roomName: currentRoom,
+            status: customStatus,
+            emoji: emoji
+        });
+    }
+});
+
+const calculateSeatPosition = (seat, bgWidth, bgHeight, containerWidth, containerHeight) => {
+    const bgAspect = bgWidth / bgHeight;
+    const containerAspect = containerWidth / containerHeight;
+
+    let renderWidth, renderHeight, offsetX, offsetY;
+
+    if (containerAspect > bgAspect) {
+        renderHeight = containerHeight;
+        renderWidth = renderHeight * bgAspect;
+        offsetX = (containerWidth - renderWidth) / 2;
+        offsetY = 0;
+    } else {
+        renderWidth = containerWidth;
+        renderHeight = renderWidth / bgAspect;
+        offsetX = 0;
+        offsetY = (containerHeight - renderHeight) / 2;
+    }
+
+    const x = offsetX + seat.x * renderWidth;
+    const y = offsetY + seat.y * renderHeight;
+
+    return { x, y, renderWidth, renderHeight, offsetX, offsetY };
+};
+
+const renderAvatars = (data, bgWidth, bgHeight, containerWidth, containerHeight) => {
+    avatarsContainer.innerHTML = '';
+
+    data.users.forEach(user => {
+        const seat = data.seats.find(s => s.occupiedBy === user.id);
+        if (seat && user.avatar) {
+            const pos = calculateSeatPosition(seat, bgWidth, bgHeight, containerWidth, containerHeight);
+
+            const avatarWrapper = document.createElement('div');
+            avatarWrapper.className = 'avatar-wrapper';
+            avatarWrapper.style.left = `${pos.x}px`;
+            avatarWrapper.style.top = `${pos.y}px`;
+            avatarWrapper.dataset.userId = user.id;
+            avatarWrapper.dataset.seatTime = user.seatTime || '';
+
+            const avatarEl = document.createElement('div');
+            avatarEl.className = 'avatar';
+
+            const labelTop = document.createElement('div');
+            labelTop.className = 'avatar-label-top';
+            labelTop.textContent = `@${escapeHtml(user.username)} ${user.statusEmoji || '😊'}`;
+
+            const img = document.createElement('img');
+            img.src = `/assets/avatars/${user.avatar}`;
+            img.alt = escapeHtml(user.username);
+
+            const labelBottom = document.createElement('div');
+            labelBottom.className = 'avatar-label-bottom';
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'avatar-time';
+            timeSpan.textContent = getElapsedTime(user.seatTime);
+
+            const statusSpan = document.createElement('span');
+            statusSpan.className = 'avatar-status';
+            statusSpan.textContent = user.status || 'Working';
+
+            labelBottom.appendChild(timeSpan);
+            labelBottom.appendChild(statusSpan);
+
+            avatarEl.appendChild(labelTop);
+            avatarEl.appendChild(img);
+            avatarEl.appendChild(labelBottom);
+
+            avatarWrapper.appendChild(avatarEl);
+            avatarsContainer.appendChild(avatarWrapper);
+        }
+    });
+};
+
+const startTimeUpdates = () => {
+    if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+    }
+
+    timeUpdateInterval = setInterval(() => {
+        document.querySelectorAll('.avatar-wrapper').forEach(avatarWrapper => {
+            const seatTime = parseInt(avatarWrapper.dataset.seatTime);
+            const timeSpan = avatarWrapper.querySelector('.avatar-time');
+            if (timeSpan && seatTime) {
+                timeSpan.textContent = getElapsedTime(seatTime);
+            }
+        });
+    }, TIME_UPDATE_INTERVAL);
+};
+
+const stopTimeUpdates = () => {
+    if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+        timeUpdateInterval = null;
+    }
+};
+
+
+let currentRoomData = null;
+let currentBgDimensions = null;
+
+const renderRoom = () => {
+    if (!currentRoomData || !currentBgDimensions) return;
+
+    const roomContent = document.getElementById('room-content');
+    if (!roomContent) return;
+
+    const containerWidth = roomContent.clientWidth;
+    const containerHeight = roomContent.clientHeight;
+    const { width: bgWidth, height: bgHeight } = currentBgDimensions;
+
     seatsContainer.innerHTML = '';
     avatarsContainer.innerHTML = '';
 
-    data.seats.forEach(seat => {
+    currentRoomData.seats.forEach(seat => {
+        const pos = calculateSeatPosition(seat, bgWidth, bgHeight, containerWidth, containerHeight);
         const seatEl = document.createElement('div');
         seatEl.className = 'seat' + (seat.occupiedBy ? ' occupied' : '');
-        seatEl.style.left = `${seat.x}px`;
-        seatEl.style.top = `${seat.y}px`;
+        seatEl.style.left = `${pos.x}px`;
+        seatEl.style.top = `${pos.y}px`;
         seatEl.dataset.seatId = seat.id;
 
         if (!seat.occupiedBy) {
@@ -325,49 +518,74 @@ socket.on('roomState', (data) => {
         seatsContainer.appendChild(seatEl);
     });
 
-    data.users.forEach(user => {
-        const seat = data.seats.find(s => s.occupiedBy === user.id);
-        if (seat) {
-            const avatarEl = document.createElement('div');
-            avatarEl.className = 'avatar';
-            avatarEl.style.left = `${seat.x}px`;
-            avatarEl.style.top = `${seat.y}px`;
-            avatarEl.textContent = escapeHtml(user.username);
-            avatarsContainer.appendChild(avatarEl);
-        }
-    });
+    renderAvatars(currentRoomData, bgWidth, bgHeight, containerWidth, containerHeight);
+};
+
+socket.on('roomState', (data) => {
+    currentRoom = data.roomName;
+    currentRoomData = data;
+    currentBgDimensions = workplaceDimensions[currentRoom] || { width: 960, height: 540 };
+
+    roomNameEl.textContent = getDisplayName(data.roomName);
+    userCountEl.textContent = `${data.users.length} users`;
+
+    renderRoom();
+    startTimeUpdates();
+});
+
+window.addEventListener('resize', () => {
+    if (currentRoom && !room.classList.contains('hidden')) {
+        renderRoom();
+    }
 });
 
 socket.on('userJoined', (data) => {
-    console.log('User joined:', data.socketId);
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
 
 socket.on('userLeft', (data) => {
-    console.log('User left:', data.socketId);
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
 
 socket.on('seatClaimed', (data) => {
-    console.log('Seat claimed:', data);
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
 
 socket.on('seatFreed', (data) => {
-    console.log('Seat freed:', data);
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
 
 socket.on('userStatusUpdated', (data) => {
-    console.log('User status updated:', data);
+    const avatarWrapper = document.querySelector(`.avatar-wrapper[data-user-id="${data.socketId}"]`);
+    if (avatarWrapper) {
+        if (data.status !== undefined) {
+            const statusSpan = avatarWrapper.querySelector('.avatar-status');
+            if (statusSpan) {
+                statusSpan.textContent = data.status || 'Working';
+            }
+        }
+
+        if (data.emoji) {
+            const labelTop = avatarWrapper.querySelector('.avatar-label-top');
+            if (labelTop) {
+                const username = labelTop.textContent.split(' ').slice(0, -1).join(' ');
+                labelTop.textContent = `${username} ${escapeHtml(data.emoji)}`;
+            }
+        }
+    }
+
+    if (data.socketId === socket.id && data.emoji) {
+        emojiDisplay.textContent = data.emoji;
+    }
+
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
@@ -384,7 +602,11 @@ socket.on('roomFull', (data) => {
 });
 
 socket.on('connect', () => {
-    console.log('Connected to server with ID:', socket.id);
+});
+
+socket.on('connect_error', (error) => {
+    console.error('Connection error:', error.message);
+    alert('Unable to connect to server. Please refresh the page.');
 });
 
 socket.on('roomsList', (rooms) => {
@@ -392,7 +614,171 @@ socket.on('roomsList', (rooms) => {
 });
 
 socket.on('disconnect', () => {
-    console.log('Disconnected from server');
+});
+
+const renderEmojiGrid = (emojis) => {
+    emojiGrid.innerHTML = '';
+    currentEmojiList = emojis;
+    selectedEmojiIndex = emojis.length > 0 ? 0 : -1;
+    emojis.forEach((emoji, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'emoji-option';
+        btn.textContent = emoji;
+        btn.dataset.index = index;
+        btn.addEventListener('click', () => {
+            emojiDisplay.textContent = emoji;
+            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+            emojiPicker.classList.add('hidden');
+            emojiSearch.value = '';
+            isPickerOpen = false;
+        });
+        emojiGrid.appendChild(btn);
+    });
+    updateEmojiSelection();
+};
+
+const filterEmojis = (query) => {
+    if (!query) {
+        renderEmojiGrid(emojiList);
+        return;
+    }
+    const q = query.toLowerCase();
+    const filtered = emojiList.filter(emoji => {
+        const keywords = emojiKeywords[emoji];
+        if (!keywords) return false;
+        return keywords.some(k => k.includes(q));
+    });
+    renderEmojiGrid(filtered);
+};
+
+let isPickerOpen = false;
+let selectedEmojiIndex = -1;
+let currentEmojiList = [];
+
+const updateEmojiSelection = () => {
+    const buttons = emojiGrid.querySelectorAll('.emoji-option');
+    buttons.forEach((btn, idx) => {
+        btn.classList.toggle('selected', idx === selectedEmojiIndex);
+    });
+    if (selectedEmojiIndex >= 0) {
+        buttons[selectedEmojiIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+};
+
+document.addEventListener('keydown', (e) => {
+    if (!isPickerOpen) return;
+    if (e.key === 'Escape') {
+        emojiPicker.classList.add('hidden');
+        isPickerOpen = false;
+        return;
+    }
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.target === emojiSearch) {
+            const buttons = emojiGrid.querySelectorAll('.emoji-option');
+            if (buttons.length > 0) {
+                buttons[selectedEmojiIndex]?.click();
+            }
+        } else if (selectedEmojiIndex >= 0 && currentEmojiList[selectedEmojiIndex]) {
+            const emoji = currentEmojiList[selectedEmojiIndex];
+            emojiDisplay.textContent = emoji;
+            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+            emojiPicker.classList.add('hidden');
+            emojiSearch.value = '';
+            isPickerOpen = false;
+        }
+        return;
+    }
+    if (e.target === emojiSearch) {
+        if (e.key === 'Backspace') {
+            emojiSearch.value = emojiSearch.value.slice(0, -1);
+            filterEmojis(emojiSearch.value);
+        }
+        return;
+    }
+    if (e.key === 'Backspace') {
+        emojiSearch.value = emojiSearch.value.slice(0, -1);
+        filterEmojis(emojiSearch.value);
+        return;
+    }
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (selectedEmojiIndex >= EMOJI_GRID_WIDTH) {
+            selectedEmojiIndex -= EMOJI_GRID_WIDTH;
+            updateEmojiSelection();
+        }
+        return;
+    }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (selectedEmojiIndex + EMOJI_GRID_WIDTH < currentEmojiList.length) {
+            selectedEmojiIndex += EMOJI_GRID_WIDTH;
+            updateEmojiSelection();
+        }
+        return;
+    }
+    if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (selectedEmojiIndex > 0) {
+            selectedEmojiIndex -= 1;
+            updateEmojiSelection();
+        }
+        return;
+    }
+    if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (selectedEmojiIndex < currentEmojiList.length - 1) {
+            selectedEmojiIndex += 1;
+            updateEmojiSelection();
+        }
+        return;
+    }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        emojiSearch.value += e.key;
+        filterEmojis(emojiSearch.value);
+    }
+});
+
+emojiPickerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    isPickerOpen = !isPickerOpen;
+    if (isPickerOpen) {
+        const btnRect = emojiPickerBtn.getBoundingClientRect();
+        const pickerHeight = 300;
+        const spaceBelow = window.innerHeight - btnRect.bottom;
+        const spaceAbove = btnRect.top;
+
+        if (spaceBelow < pickerHeight && spaceAbove > spaceBelow) {
+            emojiPicker.style.bottom = '100%';
+            emojiPicker.style.top = 'auto';
+            emojiPicker.style.marginBottom = '8px';
+        } else {
+            emojiPicker.style.top = '100%';
+            emojiPicker.style.bottom = 'auto';
+            emojiPicker.style.marginTop = '8px';
+        }
+
+        emojiPicker.classList.remove('hidden');
+        emojiSearch.value = '';
+        renderEmojiGrid(emojiList);
+    } else {
+        emojiPicker.classList.add('hidden');
+    }
+});
+
+emojiSearch.addEventListener('input', (e) => {
+    filterEmojis(e.target.value);
+});
+
+emojiPicker.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+document.addEventListener('click', (e) => {
+    if (isPickerOpen && !emojiPicker.contains(e.target) && e.target !== emojiPickerBtn) {
+        emojiPicker.classList.add('hidden');
+        isPickerOpen = false;
+    }
 });
 
 renderAvatarGrid();
