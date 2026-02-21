@@ -65,7 +65,13 @@
                     </div>
                     <div class="emoji-section">
                         <label class="toolbar-label">Emoji</label>
-                        <input type="text" id="emoji-input" class="toolbar-input" placeholder="😊" maxlength="2">
+                        <button id="emoji-picker-btn" class="toolbar-input emoji-picker-btn">
+                            <span id="emoji-display">😊</span>
+                        </button>
+                        <div id="emoji-picker" class="emoji-picker hidden">
+                            <input type="text" id="emoji-search" class="emoji-search" placeholder="Search...">
+                            <div id="emoji-grid" class="emoji-grid"></div>
+                        </div>
                     </div>
                     <div class="custom-status-section">
                         <label class="toolbar-label">Custom Status</label>
