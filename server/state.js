@@ -98,7 +98,7 @@ export const userJoined = (room, socketId, userData, maxUsers) => {
     if (maxUsers && room.users.size >= maxUsers) {
         return { success: false, reason: 'room_full' };
     }
-    const username = (userData.username || 'Anonymous').slice(0, 50);
+    const username = (userData.username?.trim() || 'Anonymous').slice(0, 50);
     const user = {
         username,
         status: 'Working',
@@ -137,9 +137,8 @@ export const updateStatus = (room, socketId, status, emoji) => {
 };
 
 export const createRoom = (roomName) => {
-    const workplaceType = roomName.replace(/-[0-9]+$/, '');
     return {
         users: new Map(),
-        seats: JSON.parse(JSON.stringify(workplacesConfig[workplaceType]?.seats || []))
+        seats: (workplacesConfig[roomName]?.seats || []).map(seat => ({ ...seat }))
     };
 };

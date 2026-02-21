@@ -52,7 +52,7 @@ npm test -- file   # Run specific file
 | Element | Convention | Example |
 |---------|------------|---------|
 | Variables | camelCase | `userCount`, `currentRoom` |
-| Functions | camelCase | `findAvailableRoom()`, `renderAvatars()` |
+| Functions | camelCase | `renderAvatars()`, `escapeHtml()` |
 | Constants | UPPER_SNAKE_CASE | `MAX_USERS`, `PORT` |
 | Files | kebab-case | `script.js`, `index.js` |
 | CSS Classes | kebab-case | `.workplace-card`, `.avatar-label-top` |

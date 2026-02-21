@@ -31,11 +31,6 @@ const broadcastRoomsList = () => {
     io.emit('roomsList', roomList);
 };
 
-const findAvailableRoom = (baseName) => {
-    if (!rooms.has(baseName)) return baseName;
-    return baseName;
-};
-
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -46,6 +41,7 @@ const io = new Server(httpServer, {
 });
 
 const eventRateLimitStore = new Map();
+const socketRateLimitKeys = new Map();
 
 const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
     const now = Date.now();
@@ -53,6 +49,10 @@ const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
 
     if (!eventRateLimitStore.has(key)) {
         eventRateLimitStore.set(key, { count: 0, resetTime: now + 1000 });
+        if (!socketRateLimitKeys.has(socketId)) {
+            socketRateLimitKeys.set(socketId, new Set());
+        }
+        socketRateLimitKeys.get(socketId).add(key);
     }
 
     const record = eventRateLimitStore.get(key);
@@ -105,14 +105,8 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const roomName = findAvailableRoom(baseRoomName);
+        const roomName = baseRoomName;
         const maxUsers = workplacesConfig[baseRoomName]?.seats.length || 10;
-
-        if (!roomName) {
-            log('WARN', 'No available room', { baseRoomName });
-            socket.emit('roomFull', { type: baseRoomName });
-            return;
-        }
 
         log('INFO', 'User joining workplace', { socketId: socket.id, roomName, username });
 
@@ -278,10 +272,10 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         log('INFO', 'Client disconnected', { socketId: socket.id });
 
-        for (const key of eventRateLimitStore.keys()) {
-            if (key.startsWith(socket.id + ':')) {
-                eventRateLimitStore.delete(key);
-            }
+        const keys = socketRateLimitKeys.get(socket.id);
+        if (keys) {
+            keys.forEach(key => eventRateLimitStore.delete(key));
+            socketRateLimitKeys.delete(socket.id);
         }
 
         rooms.forEach((room, roomName) => {
