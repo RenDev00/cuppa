@@ -22,6 +22,8 @@ const sanitizeUsername = (username) => {
         .slice(0, 50);
 };
 
+const VALID_AVATARS = ['cat.png', 'dog.png', 'cow.png', 'pig.png', 'panda.png', 'sheep.png'];
+
 const broadcastRoomsList = () => {
     const roomList = Array.from(rooms.entries()).map(([name, room]) => ({
         name,
@@ -35,7 +37,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:5173',
+        origin: '*',
         methods: ['GET', 'POST']
     }
 });
@@ -117,9 +119,11 @@ io.on('connection', (socket) => {
         }
 
         const sanitizedUsername = sanitizeUsername(username);
+        const sanitizedAvatar = VALID_AVATARS.includes(avatar) ? avatar : 'cat.png';
+
         const result = userJoined(room, socket.id, {
             username: sanitizedUsername,
-            avatar: avatar,
+            avatar: sanitizedAvatar,
         }, maxUsers);
 
         if (!result.success) {
@@ -199,6 +203,12 @@ io.on('connection', (socket) => {
         }
 
         const { roomName } = data;
+
+        if (typeof roomName !== 'string' || roomName.length === 0 || roomName.length > 50) {
+            log('WARN', 'Invalid roomName', { roomName: typeof roomName });
+            return;
+        }
+
         const room = rooms.get(roomName);
         if (!room || !room.users.has(socket.id)) {
             log('WARN', 'getRoomState failed - user not in room', { socketId: socket.id, roomName });
@@ -214,6 +224,12 @@ io.on('connection', (socket) => {
 
     socket.on('leaveRoom', (data) => {
         const { roomName } = data;
+
+        if (typeof roomName !== 'string' || roomName.length === 0 || roomName.length > 50) {
+            log('WARN', 'Invalid roomName', { roomName: typeof roomName });
+            return;
+        }
+
         const room = rooms.get(roomName);
 
         if (!room || !room.users.has(socket.id)) {
@@ -300,6 +316,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

@@ -80,6 +80,148 @@ body {
     }
 }
 
+@media (max-width: 500px) {
+    #landing {
+        padding: 24px 16px;
+    }
+
+    .landing-container {
+        max-width: 100%;
+    }
+
+    .header {
+        margin-bottom: 32px;
+    }
+
+    .title {
+        font-size: 40px;
+        letter-spacing: 0.15em;
+    }
+
+    .subtitle {
+        font-size: 14px;
+        letter-spacing: 2px;
+    }
+
+    .username-section {
+        margin-bottom: 32px;
+    }
+
+    .username-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .name-bar {
+        width: 100%;
+        max-width: 280px;
+        height: 50px;
+        padding: 12px 16px;
+    }
+
+    #username {
+        font-size: 20px;
+    }
+
+    .username-row .btn-secondary {
+        width: 100%;
+        max-width: 280px;
+        height: 44px;
+        font-size: 20px;
+    }
+
+    .avatar-section {
+        margin-bottom: 32px;
+    }
+
+    .avatar-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 12px;
+    }
+
+    .avatar-option {
+        width: 56px;
+        height: 56px;
+    }
+
+    .avatar-option img {
+        width: 40px;
+        height: 40px;
+    }
+
+    .enter-btn {
+        width: 100%;
+        max-width: 280px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    /* Room header */
+    .room-header {
+        gap: 8px;
+        padding: 0 8px;
+    }
+
+    #room-name {
+        font-size: 22px;
+        letter-spacing: 0.05em;
+    }
+
+    #user-count {
+        white-space: nowrap;
+    }
+
+    #leave-btn {
+        padding: 0 12px;
+        font-size: 16px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+
+    /* Room toolbar */
+    .room-toolbar {
+        height: auto !important;
+        min-height: auto !important;
+        padding: 12px 0 !important;
+    }
+
+    .toolbar-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 0 12px;
+    }
+
+    .status-section,
+    .emoji-section,
+    .custom-status-section {
+        width: 100%;
+        align-items: center;
+    }
+
+    .status-buttons {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .status-btn {
+        font-size: 14px;
+        height: 36px;
+        padding: 0 6px;
+    }
+
+    #custom-status-input {
+        width: 100%;
+        max-width: 280px;
+    }
+
+    .update-btn {
+        width: auto;
+        align-self: center;
+    }
+}
+
 .hidden {
     display: none !important;
 }

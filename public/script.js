@@ -1,6 +1,7 @@
 const socket = io();
 
-console.log('Socket.io test connection: Client connected');
+const TIME_UPDATE_INTERVAL = 60000;
+const EMOJI_GRID_WIDTH = 8;
 
 const landing = document.getElementById('landing');
 const workplaceSelector = document.getElementById('workplace-selector');
@@ -472,7 +473,7 @@ const startTimeUpdates = () => {
                 timeSpan.textContent = getElapsedTime(seatTime);
             }
         });
-    }, 60000);
+    }, TIME_UPDATE_INTERVAL);
 };
 
 const stopTimeUpdates = () => {
@@ -539,36 +540,30 @@ window.addEventListener('resize', () => {
 });
 
 socket.on('userJoined', (data) => {
-    console.log('User joined:', data.socketId);
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
 
 socket.on('userLeft', (data) => {
-    console.log('User left:', data.socketId);
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
 
 socket.on('seatClaimed', (data) => {
-    console.log('Seat claimed:', data);
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
 
 socket.on('seatFreed', (data) => {
-    console.log('Seat freed:', data);
     if (currentRoom) {
         socket.emit('getRoomState', { roomName: currentRoom });
     }
 });
 
 socket.on('userStatusUpdated', (data) => {
-    console.log('User status updated:', data);
-
     const avatarWrapper = document.querySelector(`.avatar-wrapper[data-user-id="${data.socketId}"]`);
     if (avatarWrapper) {
         if (data.status !== undefined) {
@@ -582,7 +577,7 @@ socket.on('userStatusUpdated', (data) => {
             const labelTop = avatarWrapper.querySelector('.avatar-label-top');
             if (labelTop) {
                 const username = labelTop.textContent.split(' ').slice(0, -1).join(' ');
-                labelTop.textContent = `${username} ${data.emoji}`;
+                labelTop.textContent = `${username} ${escapeHtml(data.emoji)}`;
             }
         }
     }
@@ -607,7 +602,11 @@ socket.on('roomFull', (data) => {
 });
 
 socket.on('connect', () => {
-    console.log('Connected to server with ID:', socket.id);
+});
+
+socket.on('connect_error', (error) => {
+    console.error('Connection error:', error.message);
+    alert('Unable to connect to server. Please refresh the page.');
 });
 
 socket.on('roomsList', (rooms) => {
@@ -615,7 +614,6 @@ socket.on('roomsList', (rooms) => {
 });
 
 socket.on('disconnect', () => {
-    console.log('Disconnected from server');
 });
 
 const renderEmojiGrid = (emojis) => {
@@ -705,16 +703,16 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'ArrowUp') {
         e.preventDefault();
-        if (selectedEmojiIndex >= 8) {
-            selectedEmojiIndex -= 8;
+        if (selectedEmojiIndex >= EMOJI_GRID_WIDTH) {
+            selectedEmojiIndex -= EMOJI_GRID_WIDTH;
             updateEmojiSelection();
         }
         return;
     }
     if (e.key === 'ArrowDown') {
         e.preventDefault();
-        if (selectedEmojiIndex + 8 < currentEmojiList.length) {
-            selectedEmojiIndex += 8;
+        if (selectedEmojiIndex + EMOJI_GRID_WIDTH < currentEmojiList.length) {
+            selectedEmojiIndex += EMOJI_GRID_WIDTH;
             updateEmojiSelection();
         }
         return;
