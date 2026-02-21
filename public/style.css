@@ -336,7 +336,7 @@ body {
 .room-header {
     flex-shrink: 0;
     height: 60px;
-    padding: 0 20px;
+    padding: 0 9px 0 20px;
     background: #e5e7eb;
     border-bottom: 3px solid #9ca3af;
     display: flex;
@@ -488,7 +488,6 @@ body {
 .room-toolbar {
     flex-shrink: 0;
     height: 90px;
-    padding: 0 20px;
     background: #e5e7eb;
     border-top: 3px solid #9ca3af;
     z-index: 10;
@@ -500,6 +499,10 @@ body {
     display: flex;
     align-items: flex-end;
     gap: 16px;
+    width: 100%;
+    padding: 0 20px;
+    box-sizing: border-box;
+    justify-content: center;
 }
 
 .status-section {
@@ -531,20 +534,21 @@ body {
 
 .status-btn {
     height: 42px;
-    padding: 0 16px;
+    padding: 0 8px;
     background: #fff;
     color: #4b5563;
     border: 3px solid #9ca3af;
     border-radius: 4px;
     cursor: pointer;
     font-family: 'Jersey10', system-ui, sans-serif;
-    font-size: 16px;
+    font-size: 18px;
     line-height: 1;
     box-sizing: border-box;
     transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    white-space: nowrap;
 }
 
 .status-btn:hover {
@@ -586,12 +590,16 @@ body {
     width: 60px;
     height: 42px;
     text-align: center;
-    font-size: 28px;
+    font-size: 24px;
     padding: 0;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+#emoji-display {
+    font-size: 24px;
 }
 
 .emoji-picker-btn:hover {

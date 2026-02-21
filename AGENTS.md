@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Cuppa is a digital workplace application with a Node.js/Express backend using Socket.io for real-time communication and a vanilla JavaScript frontend built with Vite. The app features a pixel-art aesthetic with custom fonts (Jersey10, Tiny5).
+Cuppa is a digital workplace application with a Node.js/Express backend using Socket.io for real-time communication and a vanilla JavaScript frontend built with Vite. Features a pixel-art aesthetic with custom fonts (Jersey10, Tiny5).
 
 ---
 
@@ -15,17 +15,14 @@ npm install
 
 ### Development
 ```bash
-# Run frontend (Vite dev server on port 5173)
-npm run dev
-
-# Run backend server (Express + Socket.io on port 3000)
-npm run dev:server
+npm run dev         # Frontend (Vite on port 5173)
+npm run dev:server  # Backend (Express + Socket.io on port 3000)
 ```
 
 ### Build & Preview
 ```bash
-npm run build      # Build frontend for production
-npm run preview    # Preview production build
+npm run build    # Build frontend for production
+npm run preview  # Preview production build
 ```
 
 ### Testing
@@ -58,9 +55,9 @@ npm test -- file   # Run specific file
 | CSS Classes | kebab-case | `.workplace-card`, `.avatar-label-top` |
 
 ### Formatting
-- Use 4 spaces for indentation
+- 4 spaces for indentation
 - Maximum line length: 100 characters
-- Add trailing commas in multiline objects/arrays
+- Trailing commas in multiline objects/arrays
 - Use template literals instead of string concatenation
 
 ### Comments
@@ -73,19 +70,14 @@ npm test -- file   # Run specific file
 
 ### Server Imports
 ```javascript
-// Node built-ins
 import express from 'express';
 import { createServer } from 'http';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-// Local imports (use destructuring for multiple exports)
 import { rooms, workplacesConfig, claimSeat, userJoined } from './state.js';
 ```
 
 ### Client Script
-- No imports needed (vanilla JS with global `io()` from socket.io script tag)
-- Cache DOM elements at the top of the file:
+- No imports needed (vanilla JS with global `io()` from socket.io)
+- Cache DOM elements at the top:
 ```javascript
 const landing = document.getElementById('landing');
 const roomNameEl = document.getElementById('room-name');
@@ -100,8 +92,6 @@ Always validate incoming data:
 ```javascript
 socket.on('claimSeat', (data) => {
     const { roomName, seatId } = data;
-    
-    // Type validation
     if (typeof roomName !== 'string' || roomName.length === 0) {
         log('WARN', 'Invalid roomName');
         return;
@@ -110,30 +100,23 @@ socket.on('claimSeat', (data) => {
         log('WARN', 'Invalid seatId type');
         return;
     }
-    
-    // Existence validation
     const room = rooms.get(roomName);
     if (!room) {
         log('WARN', 'Room not found', { roomName });
         return;
     }
-    // ... handler logic
 });
 ```
 
 ### Logging
-Use the structured logger with level and data:
 ```javascript
 const log = (level, message, data = {}) => {
     console.log(`[${new Date().toISOString()}] [${level}] ${message}`, data);
 };
-
 log('INFO', 'User joined', { socketId: socket.id, roomName });
-log('WARN', 'Room not found', { roomName });
 ```
 
 ### Rate Limiting
-Apply rate limiting to prevent abuse:
 ```javascript
 if (!checkRateLimit(socket.id, 'claimSeat', 1)) {
     log('WARN', 'Rate limit exceeded', { socketId: socket.id });
@@ -141,23 +124,9 @@ if (!checkRateLimit(socket.id, 'claimSeat', 1)) {
 }
 ```
 
-### Broadcasting Updates
-```javascript
-io.to(roomName).emit('seatClaimed', { seatId, socketId: socket.id });
-io.to(roomName).emit('userJoined', { socketId: socket.id, username });
-```
-
 ---
 
 ## Client-Side Patterns
-
-### DOM Caching
-Cache DOM elements at the top of script.js:
-```javascript
-const landing = document.getElementById('landing');
-const room = document.getElementById('room');
-const seatsContainer = document.getElementById('seats-container');
-```
 
 ### HTML Escaping
 Always escape user input before rendering:
@@ -180,34 +149,6 @@ socket.on('roomState', (data) => { /* handle */ });
 socket.on('userJoined', (data) => { /* handle */ });
 ```
 
-### Responsive Scaling
-For elements positioned relative to background images, use normalized coordinates (0-1) and calculate actual positions:
-```javascript
-const calculateSeatPosition = (seat, bgWidth, bgHeight, containerWidth, containerHeight) => {
-    const bgAspect = bgWidth / bgHeight;
-    const containerAspect = containerWidth / containerHeight;
-    
-    let renderWidth, renderHeight, offsetX, offsetY;
-    
-    if (containerAspect > bgAspect) {
-        renderHeight = containerHeight;
-        renderWidth = renderHeight * bgAspect;
-        offsetX = (containerWidth - renderWidth) / 2;
-        offsetY = 0;
-    } else {
-        renderWidth = containerWidth;
-        renderHeight = renderWidth / bgAspect;
-        offsetX = 0;
-        offsetY = (containerHeight - renderHeight) / 2;
-    }
-    
-    const x = offsetX + seat.x * renderWidth;
-    const y = offsetY + seat.y * renderHeight;
-    
-    return { x, y };
-};
-```
-
 ---
 
 ## State Management
@@ -222,7 +163,6 @@ export const claimSeat = (room, socketId, seatId) => {
     const seat = room.seats.find(s => s.id === seatId);
     if (!seat) return { success: false };
     if (seat.occupiedBy) return { success: false };
-    
     seat.occupiedBy = socketId;
     return { success: true };
 };
@@ -236,17 +176,10 @@ export const workplacesConfig = {
         bg: '/assets/bgs/café.png',
         bgWidth: 960,
         bgHeight: 540,
-        seats: [
-            { id: 0, x: 0.257, y: 0.75 },  // 25.7% from left, 75% from top
-        ]
+        seats: [{ id: 0, x: 0.257, y: 0.75 }]
     }
 };
 ```
-
-### Client State
-- Cache server state locally
-- Update on socket events
-- Server is always the source of truth
 
 ---
 
@@ -256,19 +189,12 @@ export const workplacesConfig = {
 - **Jersey10**: Primary font for headers, buttons, labels
 - **Tiny5**: Secondary font for subtitles, metadata
 
-```css
-.title { font-family: 'Jersey10', system-ui, sans-serif; }
-.subtitle { font-family: 'Tiny5', cursive; }
-```
-
 ### Design System
-- Background color: `#fff`
-- Border color: `#9ca3af`, `#1f2937`
-- Border width: 3px solid
-- Border radius: 4px
-- Highlight/selected color: `#f59e0b` (amber)
+- Background: `#fff`, Border: `#9ca3af`, `#1f2937`
+- Border: 3px solid, Border-radius: 4px
+- Highlight: `#f59e0b` (amber)
 
-### Pixel Art Assets
+### Pixel Art
 ```css
 img { image-rendering: pixelated; }
 ```
@@ -285,21 +211,10 @@ img { image-rendering: pixelated; }
 ---
 
 ## File Organization
-
 ```
 /cuppa
-├── public/
-│   ├── index.html
-│   ├── script.js
-│   ├── style.css
-│   └── assets/
-│       ├── avatars/
-│       ├── bgs/
-│       ├── fonts/
-│       └── thumbnails/
-├── server/
-│   ├── index.js    # Express + Socket.io handlers
-│   └── state.js    # In-memory state & helpers
+├── public/        # index.html, script.js, style.css, assets/
+├── server/        # index.js, state.js
 ├── package.json
 ├── vite.config.js
 └── AGENTS.md
@@ -309,10 +224,9 @@ img { image-rendering: pixelated; }
 
 ## Adding New Features
 
-1. **New Socket Event**: Add handler in `server/index.js`, add emitter in `public/script.js`
+1. **New Socket Event**: Add handler in `server/index.js`, emitter in `public/script.js`
 2. **New Workplace Type**: Add to `workplacesConfig` in `server/state.js`
 3. **New UI**: Add HTML in `public/index.html`, style in `public/style.css`
-4. **New User Data Field**: Update `userJoined()` in `server/state.js`, include in `roomState` emission
 
 ---
 
