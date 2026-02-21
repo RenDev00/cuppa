@@ -49,23 +49,22 @@ npm run preview
 
 ### Project Structure
 ```
-cuppa/
-├── server/
-│   ├── index.js          # Express + Socket.io server
-│   └── state.js          # In-memory rooms & workplaces config
+/cuppa
 ├── public/
 │   ├── index.html
+│   ├── script.js
 │   ├── style.css
-│   ├── script.js         # Client-side Socket.io logic
 │   └── assets/
-│       ├── avatars/      # Pixel character sprites
-│       ├── bgs/          # 960×540 px backgrounds
-│       ├── fonts/        # Jersey10, Tiny5 fonts
-│       └── icons/        # Status icons
+│       ├── avatars/
+│       ├── bgs/
+│       ├── fonts/
+│       └── thumbnails/
+├── server/
+│   ├── index.js    # Express + Socket.io handlers
+│   └── state.js    # In-memory state & helpers
 ├── package.json
 ├── vite.config.js
-├── AGENTS.md            # Guidelines for AI agents
-└── README.md
+└── AGENTS.md
 ```
 
 ---
