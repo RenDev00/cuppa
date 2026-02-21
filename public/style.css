@@ -55,6 +55,29 @@ body {
         height: 100vh;
         border-radius: 0;
     }
+
+    .room-toolbar {
+        height: auto;
+        min-height: 140px;
+        padding: 80px 0;
+    }
+
+    .toolbar-row {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .status-section {
+        width: 100%;
+        align-items: center;
+    }
+
+    .status-buttons {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
 }
 
 .hidden {
@@ -571,6 +594,7 @@ body {
     border-radius: 4px;
     font-family: 'Jersey10', system-ui, sans-serif;
     font-size: 18px;
+    line-height: 36px;
     color: #4b5563;
     outline: none;
     transition: border-color 0.15s ease;
@@ -673,7 +697,9 @@ body {
     height: 42px;
     padding: 0 20px;
     font-size: 18px;
-    margin-left: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #preload {
