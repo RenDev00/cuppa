@@ -35,9 +35,10 @@ const broadcastRoomsList = () => {
 
 const app = express();
 const httpServer = createServer(app);
+const isProduction = process.env.NODE_ENV === 'production';
 const io = new Server(httpServer, {
     cors: {
-        origin: '*',
+        origin: isProduction ? false : ['http://localhost:5173', 'http://localhost:3000'],
         methods: ['GET', 'POST']
     }
 });
@@ -72,7 +73,16 @@ const checkRateLimit = (socketId, eventName, maxPerSecond = 10) => {
     return true;
 };
 
-io.use((socket, next) => next());
+const cleanupRateLimiter = () => {
+    const now = Date.now();
+    for (const [key, record] of eventRateLimitStore.entries()) {
+        if (now > record.resetTime + 5000) {
+            eventRateLimitStore.delete(key);
+        }
+    }
+};
+
+setInterval(cleanupRateLimiter, 30000);
 
 app.use(express.static(join(__dirname, '../public')));
 
