@@ -3,29 +3,11 @@
 ## Prerequisites
 - VPS with Ubuntu 22.04 LTS
 - SSH access to your VPS
-- Node.js 18+ installed on VPS
+- Node.js 20+ installed on VPS
 
 ---
 
-## Step 1: Prepare Your Local Code
-
-### Update package.json scripts for production:
-
-```json
-{
-  "scripts": {
-    "dev": "vite --host --port 5173",
-    "dev:server": "node server/index.js",
-    "build": "vite build",
-    "preview": "vite preview --host",
-    "start": "NODE_ENV=production node server/index.js"
-  }
-}
-```
-
----
-
-## Step 2: Set Up VPS
+## Step 1: Set Up VPS
 
 ### Connect to your VPS:
 
@@ -36,7 +18,7 @@ ssh user@your-vps-ip
 ### Install Node.js (if not installed):
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install nodejs
 ```
 
@@ -49,7 +31,7 @@ sudo apt install nginx
 
 ---
 
-## Step 3: Transfer Files to VPS
+## Step 2: Transfer Files to VPS
 
 On your VPS:
 
@@ -64,12 +46,12 @@ npm prune --production
 
 ---
 
-## Step 4: Configure Nginx as Reverse Proxy
+## Step 3: Configure Nginx as Reverse Proxy
 
 ### Create Nginx config:
 
 ```bash
-sudo nano /etc/nginx/sites-available/cuppa
+sudo vim /etc/nginx/sites-available/cuppa
 ```
 
 ### Add configuration:
@@ -102,7 +84,7 @@ sudo systemctl reload nginx
 
 ---
 
-## Step 5: Start the Application with PM2
+## Step 4: Start the Application with PM2
 
 ### Start the server:
 
@@ -115,13 +97,12 @@ pm2 start server/index.js --name cuppa
 
 ```bash
 pm2 startup
-# Follow the output instructions (run the generated command)
 pm2 save
 ```
 
 ---
 
-## Step 6: Verify Deployment
+## Step 5: Verify Deployment
 
 ### Check if running:
 
@@ -159,6 +140,7 @@ git pull
 
 # Rebuild if needed
 npm run build
+npm prune --production
 
 # Restart
 pm2 restart cuppa
