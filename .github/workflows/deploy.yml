@@ -31,4 +31,15 @@ jobs:
             npm run build
             npm prune --production
             pm2 restart cuppa
-            curl -f http://localhost:3000/health || echo "Backend not responding!"
+
+            echo "Waiting for backend..."
+            for i in {1..20}; do
+              if curl -s -f -o /dev/null http://localhost:3000; then
+                echo "Backend ready after $i attempts"
+                exit 0
+              fi
+              sleep 3
+            done
+
+            echo "ERROR: Backend not responding after 60s"
+            exit 1
