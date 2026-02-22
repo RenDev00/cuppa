@@ -70,7 +70,6 @@ jobs:
               repo: context.repo.repo,
               commit_sha: context.sha
             });
-
             const pr = result.data[0];
             if (pr) {
               return {
@@ -80,7 +79,7 @@ jobs:
             } else {
               return null;
             }
-          result-encoding: string
+          result-encoding: json
 
       - name: Build commit summary for Telegram
         id: summary
@@ -88,40 +87,46 @@ jobs:
         run: |
           SUMMARY="*Deploy to VPS* — ${{ job.status == 'success' && '✅ Success' || job.status == 'failure' && '❌ Failed' || '⚪ Cancelled' }}\n\n"
 
-          if [ -n "${{ steps.get_pr.outputs.result }}" ] && [ "${{ steps.get_pr.outputs.result }}" != "null" ]; then
-            PR_DATA='${{ steps.get_pr.outputs.result }}'
+          PR_DATA='${{ steps.get_pr.outputs.result }}'
+
+          if [ -n "$PR_DATA" ] && [ "$PR_DATA" != "null" ]; then
+            # Merged PR case
             PR_NUM=$(echo "$PR_DATA" | jq -r '.number')
             PR_TITLE=$(echo "$PR_DATA" | jq -r '.title')
+            PR_TITLE_SAFE=$(echo "$PR_TITLE" | sed 's/[_*[\]()~`>#+=|{}.!-]/\\&/g' | head -n1)
 
-            # Fetch PR commits
+            # Fetch commits from the PR
             RESPONSE=$(curl -s -L \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
               "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUM/commits")
 
-            if echo "$RESPONSE" | grep -q '"message"'; then
-              SUMMARY="${SUMMARY}*Merged PR #$PR_NUM* - $PR_TITLE\n(Could not fetch commits - API error)\n"
-              SUMMARY="${SUMMARY}Merge commit: ${{ github.sha }}\n"
-            else
+            if echo "$RESPONSE" | jq -e 'type == "array"' >/dev/null 2>&1; then
               COMMIT_LIST=$(echo "$RESPONSE" | jq -r '.[] | "• \(.commit.message | split("\n")[0] | .[0:100]) (\(.sha | .[0:9]))"' 2>/dev/null || echo "")
               if [ -z "$COMMIT_LIST" ]; then
-                SUMMARY="${SUMMARY}*Merged PR #$PR_NUM* - $PR_TITLE\n(no commits listed)\n"
+                SUMMARY="${SUMMARY}*Merged PR #$PR_NUM* - $PR_TITLE_SAFE\n(no commits listed)\n"
               else
-                SUMMARY="${SUMMARY}*Merged PR #$PR_NUM* - $PR_TITLE\n${COMMIT_LIST}\n"
+                SUMMARY="${SUMMARY}*Merged PR #$PR_NUM* - $PR_TITLE_SAFE\n${COMMIT_LIST}\n"
               fi
+            else
+              SUMMARY="${SUMMARY}*Merged PR #$PR_NUM* - $PR_TITLE_SAFE\n(Could not fetch commits - API error)\n"
+              SUMMARY="${SUMMARY}Merge commit: ${{ github.sha }}\n"
             fi
+
           else
-            # Non-merge case (direct push / multi commits)
+            # Non-merge case (direct push to main, possibly multiple commits)
+            COMMITS_JSON='${{ toJSON(github.event.commits) }}'
+            NUM_COMMITS=$(echo "$COMMITS_JSON" | jq 'length' 2>/dev/null || echo 0)
+
             HEAD_MSG="${{ github.event.head_commit.message }}"
             HEAD_SHORT=$(echo "${{ github.sha }}" | cut -c1-9)
             HEAD_AUTHOR="${{ github.event.head_commit.author.name }}"
-
             HEAD_MSG_SAFE=$(echo "$HEAD_MSG" | sed 's/[_*[\]()~`>#+=|{}.!-]/\\&/g' | head -n1)
 
-            if [ ${#github.event.commits[@]} -gt 1 ]; then
+            if [ "$NUM_COMMITS" -gt 1 ]; then
               SUMMARY="${SUMMARY}*Multiple commits pushed*\n"
-              for commit in $(jq -c '.[]' <<< '${{ toJSON(github.event.commits) }}'); do
+              for commit in $(echo "$COMMITS_JSON" | jq -c '.[]'); do
                 SHA=$(echo "$commit" | jq -r '.id' | cut -c1-9)
                 MSG=$(echo "$commit" | jq -r '.message' | head -n1 | sed 's/[_*[\]()~`>#+=|{}.!-]/\\&/g')
                 SUMMARY="${SUMMARY}• ${MSG} (${SHA})\n"
