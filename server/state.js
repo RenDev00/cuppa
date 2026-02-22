@@ -86,11 +86,6 @@ export const claimSeat = (room, socketId, seatId) => {
 
     seat.occupiedBy = socketId;
 
-    const user = room.users.get(socketId);
-    if (user) {
-        user.seatTime = Date.now();
-    }
-
     return { success: true, freedSeatId };
 };
 
@@ -104,7 +99,7 @@ export const userJoined = (room, socketId, userData, maxUsers) => {
         status: 'Working',
         avatar: userData.avatar || null,
         statusEmoji: '💻',
-        seatTime: null
+        statusTime: Date.now()
     };
     room.users.set(socketId, user);
     return { success: true, user };
@@ -133,6 +128,7 @@ export const updateStatus = (room, socketId, status, emoji) => {
 
     user.status = status.slice(0, 20);
     user.statusEmoji = emoji || '😊';
+    user.statusTime = Date.now();
     return true;
 };
 

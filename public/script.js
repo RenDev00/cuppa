@@ -73,9 +73,9 @@ const formatDuration = (ms) => {
     return `${minutes}m`;
 };
 
-const getElapsedTime = (seatTime) => {
-    if (!seatTime) return '0m';
-    return formatDuration(Date.now() - seatTime);
+const getElapsedTime = (statusTime) => {
+    if (!statusTime) return '0m';
+    return formatDuration(Date.now() - statusTime);
 };
 
 const preloadAssets = () => {
@@ -424,7 +424,7 @@ const renderAvatars = (data, bgWidth, bgHeight, containerWidth, containerHeight)
             avatarWrapper.style.left = `${pos.x}px`;
             avatarWrapper.style.top = `${pos.y}px`;
             avatarWrapper.dataset.userId = user.id;
-            avatarWrapper.dataset.seatTime = user.seatTime || '';
+            avatarWrapper.dataset.statusTime = user.statusTime || '';
 
             const avatarEl = document.createElement('div');
             avatarEl.className = 'avatar';
@@ -442,7 +442,7 @@ const renderAvatars = (data, bgWidth, bgHeight, containerWidth, containerHeight)
 
             const timeSpan = document.createElement('span');
             timeSpan.className = 'avatar-time';
-            timeSpan.textContent = getElapsedTime(user.seatTime);
+            timeSpan.textContent = getElapsedTime(user.statusTime);
 
             const statusSpan = document.createElement('span');
             statusSpan.className = 'avatar-status';
@@ -468,10 +468,10 @@ const startTimeUpdates = () => {
 
     timeUpdateInterval = setInterval(() => {
         document.querySelectorAll('.avatar-wrapper').forEach(avatarWrapper => {
-            const seatTime = parseInt(avatarWrapper.dataset.seatTime);
+            const statusTime = parseInt(avatarWrapper.dataset.statusTime);
             const timeSpan = avatarWrapper.querySelector('.avatar-time');
-            if (timeSpan && seatTime) {
-                timeSpan.textContent = getElapsedTime(seatTime);
+            if (timeSpan && statusTime) {
+                timeSpan.textContent = getElapsedTime(statusTime);
             }
         });
     }, TIME_UPDATE_INTERVAL);
