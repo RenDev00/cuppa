@@ -744,20 +744,9 @@ emojiPickerBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     isPickerOpen = !isPickerOpen;
     if (isPickerOpen) {
-        const btnRect = emojiPickerBtn.getBoundingClientRect();
-        const pickerHeight = 300;
-        const spaceBelow = window.innerHeight - btnRect.bottom;
-        const spaceAbove = btnRect.top;
-
-        if (spaceBelow < pickerHeight && spaceAbove > spaceBelow) {
-            emojiPicker.style.bottom = '100%';
-            emojiPicker.style.top = 'auto';
-            emojiPicker.style.marginBottom = '8px';
-        } else {
-            emojiPicker.style.top = '100%';
-            emojiPicker.style.bottom = 'auto';
-            emojiPicker.style.marginTop = '8px';
-        }
+        emojiPicker.style.bottom = '100%';
+        emojiPicker.style.top = 'auto';
+        emojiPicker.style.marginBottom = '8px';
 
         emojiPicker.classList.remove('hidden');
         emojiSearch.value = '';
