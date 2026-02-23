@@ -457,6 +457,15 @@ const renderAvatars = (data, bgWidth, bgHeight, containerWidth, containerHeight)
 
             avatarWrapper.appendChild(avatarEl);
             avatarsContainer.appendChild(avatarWrapper);
+
+            avatarWrapper.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const wasFocused = avatarWrapper.classList.contains('focused');
+                document.querySelectorAll('.avatar-wrapper.focused').forEach(el => el.classList.remove('focused'));
+                if (!wasFocused) {
+                    avatarWrapper.classList.add('focused');
+                }
+            });
         }
     });
 };
@@ -768,6 +777,9 @@ document.addEventListener('click', (e) => {
     if (isPickerOpen && !emojiPicker.contains(e.target) && e.target !== emojiPickerBtn) {
         emojiPicker.classList.add('hidden');
         isPickerOpen = false;
+    }
+    if (!e.target.closest('.avatar-wrapper')) {
+        document.querySelectorAll('.avatar-wrapper.focused').forEach(el => el.classList.remove('focused'));
     }
 });
 
