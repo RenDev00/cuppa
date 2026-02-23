@@ -591,7 +591,18 @@ body {
 .avatar-wrapper {
     position: absolute;
     transform: translate(-50%, -60%);
-    pointer-events: none;
+    pointer-events: auto;
+    transition: z-index 0s;
+}
+
+.avatar-wrapper:hover,
+.avatar-wrapper:focus-within {
+    z-index: 100;
+}
+
+.avatar-wrapper:hover .avatar,
+.avatar-wrapper:focus-within .avatar {
+    transform: scale(1.1);
 }
 
 .avatar {
@@ -599,7 +610,8 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    pointer-events: none;
+    pointer-events: auto;
+    transition: transform 0.15s ease;
 }
 
 .avatar img {
