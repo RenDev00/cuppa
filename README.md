@@ -2,7 +2,7 @@
 
 A cozy real-time virtual co-working space with pixel-art aesthetics. Join instantly—no registration, no accounts, just pick a username and start working alongside others. Everything lives in server memory and disappears when you leave.
 
-[**Try It → Live Demo**](http://194.156.154.186/)
+[**Try It → Live Demo**](https://cuppa.work/)
 
 ---
 
