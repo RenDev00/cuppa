@@ -597,7 +597,7 @@ body {
 
 .avatar-wrapper:hover,
 .avatar-wrapper:focus-within {
-    z-index: 100;
+    z-index: 200;
 }
 
 .avatar-wrapper:hover .avatar,
