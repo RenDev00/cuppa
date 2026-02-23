@@ -596,15 +596,17 @@ body {
 }
 
 .avatar-wrapper:hover,
-.avatar-wrapper:focus-within,
-.avatar-wrapper.focused {
+.avatar-wrapper:focus-within {
     z-index: 100;
 }
 
 .avatar-wrapper:hover .avatar,
-.avatar-wrapper:focus-within .avatar,
-.avatar-wrapper.focused .avatar {
+.avatar-wrapper:focus-within .avatar {
     transform: scale(1.1);
+}
+
+.avatar-wrapper.focused {
+    z-index: 100;
 }
 
 .avatar {
